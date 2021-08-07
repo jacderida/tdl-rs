@@ -9,6 +9,7 @@ use crate::commands::source_port::run_source_port_cmd;
 use crate::commands::Command;
 use crate::settings::FileSettingsRepository;
 use color_eyre::{Report, Result};
+use env_logger::Env;
 use std::path::PathBuf;
 use structopt::{clap::AppSettings::ColoredHelp, StructOpt};
 
@@ -23,6 +24,9 @@ pub struct CmdArgs {
 
 fn main() -> Result<(), Report> {
     color_eyre::install()?;
+    env_logger::Builder::from_env(Env::default().default_filter_or("info"))
+        .format_timestamp(None)
+        .init();
     let args = CmdArgs::from_args();
     let result = match args.cmd {
         Some(Command::Play { megawad }) => run_play_cmd(megawad),

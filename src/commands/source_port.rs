@@ -1,6 +1,7 @@
 use crate::settings::SettingsRepository;
 use crate::source_port::SourcePort;
 use color_eyre::{eyre::eyre, Help, Report, Result};
+use log::{debug, info};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -28,6 +29,12 @@ pub fn run_source_port_cmd(
             path,
             version,
         } => {
+            debug!(
+                "Running add source port command: {} {} {}",
+                &name,
+                path.display(),
+                &version
+            );
             let source_port = SourcePort::new(&name, path, &version)?;
             let mut settings = repository.get()?;
             if settings
@@ -43,6 +50,7 @@ pub fn run_source_port_cmd(
             }
             settings.source_ports.push(source_port);
             repository.save(settings)?;
+            info!("Added version {} of {}", version, name);
         }
     }
     Ok(())
