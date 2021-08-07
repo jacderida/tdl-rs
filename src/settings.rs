@@ -3,9 +3,9 @@ use color_eyre::{eyre::eyre, Report, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SettingsRegistry {
-    source_ports: Vec<SourcePort>,
+    pub source_ports: Vec<SourcePort>,
 }
 
 pub trait SettingsRepository {
@@ -20,7 +20,7 @@ pub struct FileSettingsRepository {
 impl FileSettingsRepository {
     pub fn new(settings_path: PathBuf) -> Result<FileSettingsRepository, Report> {
         if !settings_path.exists() {
-            std::fs::write(settings_path.to_str().unwrap(), "{}")?;
+            std::fs::write(settings_path.to_str().unwrap(), r#"{"source_ports":[]}"#)?;
         }
         Ok(FileSettingsRepository { settings_path })
     }
@@ -73,7 +73,7 @@ mod tests {
         settings_file.assert(predicate::path::exists());
         let settings_contents =
             std::fs::read_to_string(settings_file.path().to_str().unwrap()).unwrap();
-        assert_eq!(settings_contents, "{}");
+        assert_eq!(settings_contents, r#"{"source_ports":[]}"#);
     }
 
     #[test]
@@ -113,5 +113,14 @@ mod tests {
         assert_eq!(sp.name, "prboom");
         assert_eq!(sp.path.to_str().unwrap(), sp_exe.path().to_str().unwrap());
         assert_eq!(sp.version, "2.6");
+    }
+
+    #[test]
+    fn get_should_return_an_empty_initialised_settings_registry_if_no_settings_have_yet_been_saved()
+    {
+        let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
+        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let retrieved_settings = repo.get().unwrap();
+        assert_eq!(retrieved_settings.source_ports.len(), 0);
     }
 }

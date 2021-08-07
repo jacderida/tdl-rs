@@ -18,7 +18,7 @@ pub enum SourcePortType {
     DoomRetro,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SourcePort {
     pub name: String,
     pub path: PathBuf,

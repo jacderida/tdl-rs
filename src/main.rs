@@ -7,8 +7,9 @@ use crate::commands::play::run_play_cmd;
 use crate::commands::profile::run_profile_cmd;
 use crate::commands::source_port::run_source_port_cmd;
 use crate::commands::Command;
-
+use crate::settings::FileSettingsRepository;
 use color_eyre::{Report, Result};
+use std::path::PathBuf;
 use structopt::{clap::AppSettings::ColoredHelp, StructOpt};
 
 #[derive(StructOpt, Debug)]
@@ -26,7 +27,12 @@ fn main() -> Result<(), Report> {
     let result = match args.cmd {
         Some(Command::Play { megawad }) => run_play_cmd(megawad),
         Some(Command::Profile { cmd }) => run_profile_cmd(cmd),
-        Some(Command::SourcePort { cmd }) => run_source_port_cmd(cmd),
+        Some(Command::SourcePort { cmd }) => {
+            let repository = FileSettingsRepository::new(PathBuf::from(
+                "/home/chris/.config/tdl/settings.json",
+            ))?;
+            run_source_port_cmd(cmd, &repository)
+        }
         None => panic!("Eventually go into interactive mode"),
     };
     result
