@@ -1,3 +1,4 @@
+use crate::profile::Profile;
 use crate::source_port::SourcePort;
 use color_eyre::{eyre::eyre, Report, Result};
 use serde::{Deserialize, Serialize};
@@ -6,6 +7,7 @@ use std::path::PathBuf;
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SettingsRegistry {
     pub source_ports: Vec<SourcePort>,
+    pub profiles: Vec<Profile>,
 }
 
 pub trait SettingsRepository {
@@ -20,7 +22,10 @@ pub struct FileSettingsRepository {
 impl FileSettingsRepository {
     pub fn new(settings_path: PathBuf) -> Result<FileSettingsRepository, Report> {
         if !settings_path.exists() {
-            std::fs::write(settings_path.to_str().unwrap(), r#"{"source_ports":[]}"#)?;
+            std::fs::write(
+                settings_path.to_str().unwrap(),
+                r#"{"source_ports":[], "profiles": []}"#,
+            )?;
         }
         Ok(FileSettingsRepository { settings_path })
     }
@@ -73,7 +78,7 @@ mod tests {
         settings_file.assert(predicate::path::exists());
         let settings_contents =
             std::fs::read_to_string(settings_file.path().to_str().unwrap()).unwrap();
-        assert_eq!(settings_contents, r#"{"source_ports":[]}"#);
+        assert_eq!(settings_contents, r#"{"source_ports":[], "profiles": []}"#);
     }
 
     #[test]
@@ -83,6 +88,7 @@ mod tests {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let settings = SettingsRegistry {
             source_ports: vec![SourcePort::new("prboom", sp_exe.to_path_buf(), "2.6").unwrap()],
+            profiles: Vec::new(),
         };
         let serialized_settings = serde_json::to_string(&settings).unwrap();
 
@@ -102,6 +108,7 @@ mod tests {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let settings = SettingsRegistry {
             source_ports: vec![SourcePort::new("prboom", sp_exe.to_path_buf(), "2.6").unwrap()],
+            profiles: Vec::new(),
         };
         let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
         let _ = repo.save(settings);

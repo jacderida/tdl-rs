@@ -1,14 +1,31 @@
 use color_eyre::{eyre::ensure, Report, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use std::str::FromStr;
+use structopt::StructOpt;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, StructOpt, Serialize, Deserialize)]
 pub enum Skill {
     TooYoungToDie,
     HeyNotTooRough,
     HurtMePlenty,
     UltraViolence,
     Nightmare,
+}
+
+impl FromStr for Skill {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Skill, Self::Err> {
+        match input {
+            "TooYoungToDie" => Ok(Skill::TooYoungToDie),
+            "HeyNotTooRough" => Ok(Skill::HeyNotTooRough),
+            "HurtMePlenty" => Ok(Skill::HurtMePlenty),
+            "UltraViolence" => Ok(Skill::UltraViolence),
+            "Nightmare" => Ok(Skill::Nightmare),
+            _ => Err(format!("{} is not a valid skill", input)),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]

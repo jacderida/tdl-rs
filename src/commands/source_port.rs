@@ -104,6 +104,7 @@ mod tests {
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
+            profiles: Vec::new(),
         };
         repo.save(settings).unwrap();
 
@@ -140,6 +141,7 @@ mod tests {
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
+            profiles: Vec::new(),
         };
         repo.save(settings).unwrap();
 
@@ -170,6 +172,7 @@ mod tests {
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
+            profiles: Vec::new(),
         };
         repo.save(settings).unwrap();
 

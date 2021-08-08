@@ -30,7 +30,12 @@ fn main() -> Result<(), Report> {
     let args = CmdArgs::from_args();
     let result = match args.cmd {
         Some(Command::Play { megawad }) => run_play_cmd(megawad),
-        Some(Command::Profile { cmd }) => run_profile_cmd(cmd),
+        Some(Command::Profile { cmd }) => {
+            let repository = FileSettingsRepository::new(PathBuf::from(
+                "/home/chris/.config/tdl/settings.json",
+            ))?;
+            run_profile_cmd(cmd, repository)
+        }
         Some(Command::SourcePort { cmd }) => {
             let repository = FileSettingsRepository::new(PathBuf::from(
                 "/home/chris/.config/tdl/settings.json",
