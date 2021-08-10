@@ -57,6 +57,7 @@ mod tests {
     use super::SettingsRegistry;
     use super::SettingsRepository;
     use super::SourcePort;
+    use crate::source_port::SourcePortType;
     use assert_fs::prelude::*;
     use predicates::prelude::*;
 
@@ -87,7 +88,12 @@ mod tests {
         sp_exe.write_binary(b"fake source port code").unwrap();
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let settings = SettingsRegistry {
-            source_ports: vec![SourcePort::new("prboom", sp_exe.to_path_buf(), "2.6").unwrap()],
+            source_ports: vec![SourcePort::new(
+                SourcePortType::PrBoom,
+                sp_exe.to_path_buf(),
+                "2.6",
+            )
+            .unwrap()],
             profiles: Vec::new(),
         };
         let serialized_settings = serde_json::to_string(&settings).unwrap();
@@ -107,7 +113,12 @@ mod tests {
         sp_exe.write_binary(b"fake source port code").unwrap();
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let settings = SettingsRegistry {
-            source_ports: vec![SourcePort::new("prboom", sp_exe.to_path_buf(), "2.6").unwrap()],
+            source_ports: vec![SourcePort::new(
+                SourcePortType::PrBoom,
+                sp_exe.to_path_buf(),
+                "2.6",
+            )
+            .unwrap()],
             profiles: Vec::new(),
         };
         let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
@@ -117,7 +128,7 @@ mod tests {
 
         settings_file.assert(predicate::path::exists());
         let sp = &retrieved_settings.source_ports[0];
-        assert_eq!(sp.name, "prboom");
+        matches!(sp.source_port_type, SourcePortType::PrBoom);
         assert_eq!(sp.path.to_str().unwrap(), sp_exe.path().to_str().unwrap());
         assert_eq!(sp.version, "2.6");
     }

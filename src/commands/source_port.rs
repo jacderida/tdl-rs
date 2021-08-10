@@ -1,5 +1,5 @@
 use crate::settings::SettingsRepository;
-use crate::source_port::SourcePort;
+use crate::source_port::{SourcePort, SourcePortType};
 use color_eyre::{eyre::eyre, Help, Report, Result};
 use log::{debug, info};
 use std::path::PathBuf;
@@ -10,8 +10,9 @@ pub enum SourcePortCommand {
     #[structopt(name = "add")]
     /// Adds a source port from an existing directory
     Add {
-        /// The name of the source port
-        name: String,
+        /// The type of the source port. Valid values are 'prboom', 'prboomumapinfo', 'dsda',
+        /// 'gzdoom', 'doomretro'.
+        source_port_type: SourcePortType,
         /// The path of the source port executable
         path: PathBuf,
         /// The version of the source port
@@ -25,32 +26,33 @@ pub fn run_source_port_cmd(
 ) -> Result<(), Report> {
     match cmd {
         SourcePortCommand::Add {
-            name,
+            source_port_type,
             path,
             version,
         } => {
+            debug!("Running add source port command");
             debug!(
-                "Running add source port command: {} {} {}",
-                &name,
+                "Using values: type: {:?}, path: {}, version: {}",
+                source_port_type,
                 path.display(),
                 &version
             );
-            let source_port = SourcePort::new(&name, path, &version)?;
+            let source_port = SourcePort::new(source_port_type, path, &version)?;
             let mut settings = repository.get()?;
             if settings
                 .source_ports
                 .iter()
-                .any(|sp| sp.name == name && sp.version == version)
+                .any(|sp| sp.source_port_type == source_port_type && sp.version == version)
             {
                 return Err(eyre!(format!(
-                    "There is already a Source Port named '{}' at version {}",
-                    name, version
+                    "There is already a {:?} Source Port at version {}",
+                    source_port_type, version
                 ))
                 .suggestion("Try adding one with a different name or version"));
             }
             settings.source_ports.push(source_port);
             repository.save(settings)?;
-            info!("Added version {} of {}", version, name);
+            info!("Added version {} of {:?}", version, source_port_type);
         }
     }
     Ok(())
@@ -64,6 +66,7 @@ mod tests {
     use crate::settings::SettingsRegistry;
     use crate::settings::SettingsRepository;
     use crate::source_port::SourcePort;
+    use crate::source_port::SourcePortType;
     use assert_fs::prelude::*;
 
     #[test]
@@ -75,7 +78,7 @@ mod tests {
         sp_exe.write_binary(b"fake source port code").unwrap();
 
         let cmd = SourcePortCommand::Add {
-            name: "prboom".to_string(),
+            source_port_type: SourcePortType::PrBoom,
             path: sp_exe.path().to_path_buf(),
             version: "2.6".to_string(),
         };
@@ -83,7 +86,10 @@ mod tests {
 
         let settings = repo.get().unwrap();
         assert_eq!(settings.source_ports.len(), 1);
-        assert_eq!(settings.source_ports[0].name, "prboom");
+        matches!(
+            settings.source_ports[0].source_port_type,
+            SourcePortType::PrBoom
+        );
         assert_eq!(
             settings.source_ports[0].path.to_str(),
             sp_exe.path().to_str()
@@ -100,7 +106,7 @@ mod tests {
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = SettingsRegistry {
             source_ports: vec![SourcePort {
-                name: "prboom".to_string(),
+                source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -112,7 +118,7 @@ mod tests {
         gzdoom_exe.write_binary(b"fake source port code").unwrap();
 
         let cmd = SourcePortCommand::Add {
-            name: "gzdoom".to_string(),
+            source_port_type: SourcePortType::GzDoom,
             path: gzdoom_exe.path().to_path_buf(),
             version: "4.6.1".to_string(),
         };
@@ -120,7 +126,10 @@ mod tests {
 
         let settings = repo.get().unwrap();
         assert_eq!(settings.source_ports.len(), 2);
-        assert_eq!(settings.source_ports[1].name, "gzdoom");
+        matches!(
+            settings.source_ports[1].source_port_type,
+            SourcePortType::GzDoom
+        );
         assert_eq!(
             settings.source_ports[1].path.to_str(),
             gzdoom_exe.path().to_str()
@@ -129,7 +138,7 @@ mod tests {
     }
 
     #[test]
-    fn add_source_port_cmd_should_not_allow_duplicate_name_version_combo() {
+    fn add_source_port_cmd_should_not_allow_duplicate_type_version_combo() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
@@ -137,7 +146,7 @@ mod tests {
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = SettingsRegistry {
             source_ports: vec![SourcePort {
-                name: "prboom".to_string(),
+                source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -146,7 +155,7 @@ mod tests {
         repo.save(settings).unwrap();
 
         let cmd = SourcePortCommand::Add {
-            name: "prboom".to_string(),
+            source_port_type: SourcePortType::PrBoom,
             path: prboom_exe.path().to_path_buf(),
             version: "2.6".to_string(),
         };
@@ -155,12 +164,12 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("There is already a Source Port named 'prboom' at version 2.6")
+            format!("There is already a PrBoom Source Port at version 2.6")
         )
     }
 
     #[test]
-    fn add_source_port_cmd_should_allow_duplicate_name_with_different_version() {
+    fn add_source_port_cmd_should_allow_duplicate_type_with_different_version() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
@@ -168,7 +177,7 @@ mod tests {
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = SettingsRegistry {
             source_ports: vec![SourcePort {
-                name: "prboom".to_string(),
+                source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -177,7 +186,7 @@ mod tests {
         repo.save(settings).unwrap();
 
         let cmd = SourcePortCommand::Add {
-            name: "prboom".to_string(),
+            source_port_type: SourcePortType::PrBoom,
             path: prboom_exe.path().to_path_buf(),
             version: "2.7".to_string(),
         };
@@ -185,7 +194,10 @@ mod tests {
 
         let settings = repo.get().unwrap();
         assert_eq!(settings.source_ports.len(), 2);
-        assert_eq!(settings.source_ports[1].name, "prboom");
+        matches!(
+            settings.source_ports[1].source_port_type,
+            SourcePortType::PrBoom
+        );
         assert_eq!(
             settings.source_ports[1].path.to_str(),
             prboom_exe.path().to_str()

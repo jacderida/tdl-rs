@@ -1,6 +1,6 @@
 use crate::profile::Profile;
 use crate::settings::SettingsRepository;
-use crate::source_port::Skill;
+use crate::source_port::{Skill, SourcePortType};
 use color_eyre::{eyre::eyre, Help, Report, Result};
 use log::{debug, info};
 use structopt::StructOpt;
@@ -12,8 +12,12 @@ pub enum ProfileCommand {
     Add {
         /// The name of the profile
         name: String,
-        /// The source port for the profile
-        source_port: String,
+        /// The source port type. This must refer to a Source Port that has been added with the
+        /// `source-port add` command.
+        source_port_type: SourcePortType,
+        /// The source port version. This must refer to a Source Port that has been added with the
+        /// `source-port add` command.
+        source_port_version: String,
         #[structopt(short, long)]
         /// Controls whether this profile runs in fullscreen mode
         fullscreen: bool,
@@ -38,7 +42,8 @@ pub fn run_profile_cmd(
     match cmd {
         ProfileCommand::Add {
             name,
-            source_port,
+            source_port_type,
+            source_port_version,
             fullscreen,
             music,
             skill,
@@ -46,8 +51,8 @@ pub fn run_profile_cmd(
         } => {
             debug!("Running add profile command");
             debug!(
-                "Using values: name: {}, source_port: {}, fullscreen: {}, music: {}, skill: {:?}, default: {}",
-                &name, &source_port, fullscreen, music, skill, default
+                "Using values: name: {}, source_port_type: {:?}, source_port_version: {}, fullscreen: {}, music: {}, skill: {:?}, default: {}",
+                &name, source_port_type, source_port_version, fullscreen, music, skill, default
             );
             let mut is_default = default;
             let mut settings = repository.get()?;
@@ -56,17 +61,24 @@ pub fn run_profile_cmd(
                 // even if the user didn't specify that.
                 is_default = true;
             }
-            let profile = Profile::new(&name, &source_port, skill, fullscreen, music, is_default)?;
-            if !settings
-                .source_ports
-                .iter()
-                .any(|sp| sp.name == source_port)
-            {
-                return Err(
-                    eyre!(format!("The Source Port '{}' does not exist", source_port)).suggestion(
-                        "Use the 'source-port list' command to find a valid Source Port",
-                    ),
-                );
+
+            let profile = Profile::new(
+                &name,
+                source_port_type,
+                source_port_version.to_owned(),
+                skill,
+                fullscreen,
+                music,
+                is_default,
+            )?;
+            if !settings.source_ports.iter().any(|sp| {
+                sp.source_port_type == source_port_type && sp.version == source_port_version
+            }) {
+                return Err(eyre!(format!(
+                    "The Source Port '{:?}' with version '{}' does not exist",
+                    &source_port_type, source_port_version
+                ))
+                .suggestion("Use the 'source-port list' command to find a valid Source Port"));
             }
             if settings.profiles.len() > 0 && default {
                 let mut current = settings.profiles.iter_mut().find(|x| x.default).unwrap();
@@ -92,6 +104,7 @@ mod tests {
     use crate::settings::SettingsRegistry;
     use crate::settings::SettingsRepository;
     use crate::source_port::SourcePort;
+    use crate::source_port::SourcePortType;
     use assert_fs::prelude::*;
 
     #[test]
@@ -103,7 +116,7 @@ mod tests {
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = SettingsRegistry {
             source_ports: vec![SourcePort {
-                name: "prboom".to_string(),
+                source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -113,7 +126,8 @@ mod tests {
 
         let cmd = ProfileCommand::Add {
             name: "default".to_string(),
-            source_port: "prboom".to_string(),
+            source_port_type: SourcePortType::PrBoom,
+            source_port_version: "2.6".to_string(),
             fullscreen: true,
             music: true,
             skill: Skill::UltraViolence,
@@ -126,7 +140,11 @@ mod tests {
         let settings = repo.get().unwrap();
         assert_eq!(settings.profiles.len(), 1);
         assert_eq!(settings.profiles[0].name, "default");
-        assert_eq!(settings.profiles[0].source_port, "prboom");
+        matches!(
+            settings.profiles[0].source_port_type,
+            SourcePortType::PrBoom
+        );
+        assert_eq!(settings.profiles[0].source_port_version, "2.6");
         assert_eq!(settings.profiles[0].fullscreen, true);
         assert_eq!(settings.profiles[0].music, true);
         assert_eq!(settings.profiles[0].default, true);
@@ -142,7 +160,7 @@ mod tests {
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = SettingsRegistry {
             source_ports: vec![SourcePort {
-                name: "prboom".to_string(),
+                source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -152,7 +170,8 @@ mod tests {
 
         let cmd = ProfileCommand::Add {
             name: "default".to_string(),
-            source_port: "prboom".to_string(),
+            source_port_type: SourcePortType::PrBoom,
+            source_port_version: "2.6".to_string(),
             fullscreen: true,
             music: true,
             skill: Skill::UltraViolence,
@@ -165,7 +184,11 @@ mod tests {
         let settings = repo.get().unwrap();
         assert_eq!(settings.profiles.len(), 1);
         assert_eq!(settings.profiles[0].name, "default");
-        assert_eq!(settings.profiles[0].source_port, "prboom");
+        matches!(
+            settings.profiles[0].source_port_type,
+            SourcePortType::PrBoom
+        );
+        assert_eq!(settings.profiles[0].source_port_version, "2.6");
         assert_eq!(settings.profiles[0].fullscreen, true);
         assert_eq!(settings.profiles[0].music, true);
         assert_eq!(settings.profiles[0].default, true);
@@ -181,13 +204,14 @@ mod tests {
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = SettingsRegistry {
             source_ports: vec![SourcePort {
-                name: "prboom".to_string(),
+                source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
             profiles: vec![Profile {
                 name: "default".to_string(),
-                source_port: "prboom".to_string(),
+                source_port_type: SourcePortType::PrBoom,
+                source_port_version: "2.6".to_string(),
                 skill: Skill::UltraViolence,
                 fullscreen: true,
                 music: true,
@@ -198,7 +222,8 @@ mod tests {
 
         let cmd = ProfileCommand::Add {
             name: "prboom-nomusic".to_string(),
-            source_port: "prboom".to_string(),
+            source_port_type: SourcePortType::PrBoom,
+            source_port_version: "2.6".to_string(),
             fullscreen: true,
             music: false,
             skill: Skill::UltraViolence,
@@ -211,7 +236,11 @@ mod tests {
         let settings = repo.get().unwrap();
         assert_eq!(settings.profiles.len(), 2);
         assert_eq!(settings.profiles[1].name, "prboom-nomusic");
-        assert_eq!(settings.profiles[1].source_port, "prboom");
+        matches!(
+            settings.profiles[1].source_port_type,
+            SourcePortType::PrBoom
+        );
+        assert_eq!(settings.profiles[1].source_port_version, "2.6");
         assert_eq!(settings.profiles[1].fullscreen, true);
         assert_eq!(settings.profiles[1].music, false);
         matches!(settings.profiles[1].skill, Skill::UltraViolence);
@@ -226,13 +255,14 @@ mod tests {
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = SettingsRegistry {
             source_ports: vec![SourcePort {
-                name: "prboom".to_string(),
+                source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
             profiles: vec![Profile {
                 name: "default".to_string(),
-                source_port: "prboom".to_string(),
+                source_port_type: SourcePortType::PrBoom,
+                source_port_version: "2.6".to_string(),
                 skill: Skill::UltraViolence,
                 fullscreen: true,
                 music: true,
@@ -243,7 +273,8 @@ mod tests {
 
         let cmd = ProfileCommand::Add {
             name: "prboom-nomusic".to_string(),
-            source_port: "prboom".to_string(),
+            source_port_type: SourcePortType::PrBoom,
+            source_port_version: "2.6".to_string(),
             fullscreen: true,
             music: false,
             skill: Skill::UltraViolence,
@@ -257,7 +288,11 @@ mod tests {
         assert_eq!(settings.profiles.len(), 2);
         assert_eq!(settings.profiles[0].default, false);
         assert_eq!(settings.profiles[1].name, "prboom-nomusic");
-        assert_eq!(settings.profiles[1].source_port, "prboom");
+        matches!(
+            settings.profiles[1].source_port_type,
+            SourcePortType::PrBoom
+        );
+        assert_eq!(settings.profiles[1].source_port_version, "2.6");
         assert_eq!(settings.profiles[1].fullscreen, true);
         assert_eq!(settings.profiles[1].music, false);
         assert_eq!(settings.profiles[1].default, true);
@@ -273,7 +308,7 @@ mod tests {
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = SettingsRegistry {
             source_ports: vec![SourcePort {
-                name: "prboom".to_string(),
+                source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -283,7 +318,8 @@ mod tests {
 
         let cmd = ProfileCommand::Add {
             name: "default".to_string(),
-            source_port: "missing".to_string(),
+            source_port_type: SourcePortType::PrBoom,
+            source_port_version: "2.7".to_string(),
             fullscreen: true,
             music: true,
             skill: Skill::UltraViolence,
@@ -295,7 +331,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("The Source Port 'missing' does not exist")
+            format!("The Source Port 'PrBoom' with version '2.7' does not exist")
         )
     }
 }
