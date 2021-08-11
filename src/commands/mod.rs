@@ -18,6 +18,9 @@ pub enum Command {
         #[structopt(required = true)]
         /// The megawad to play, e.g. DOOM2
         megawad: String,
+        #[structopt(short, long)]
+        /// Specify the profile to play with. If not supplied, the default profile will be used.
+        profile: Option<String>,
     },
     #[structopt(
         name = "profile",

@@ -27,21 +27,15 @@ fn main() -> Result<(), Report> {
     env_logger::Builder::from_env(Env::default().default_filter_or("info"))
         .format_timestamp(None)
         .init();
+    // TODO: Obviously remove use of hard coded settings reference.
+    let settings_path = std::env::var("TDL_SETTINGS_PATH")
+        .unwrap_or_else(|_| "/home/chris/.config/tdl/settings.json".to_string());
+    let repository = FileSettingsRepository::new(PathBuf::from(settings_path))?;
     let args = CmdArgs::from_args();
     let result = match args.cmd {
-        Some(Command::Play { megawad }) => run_play_cmd(megawad),
-        Some(Command::Profile { cmd }) => {
-            let repository = FileSettingsRepository::new(PathBuf::from(
-                "/home/chris/.config/tdl/settings.json",
-            ))?;
-            run_profile_cmd(cmd, repository)
-        }
-        Some(Command::SourcePort { cmd }) => {
-            let repository = FileSettingsRepository::new(PathBuf::from(
-                "/home/chris/.config/tdl/settings.json",
-            ))?;
-            run_source_port_cmd(cmd, &repository)
-        }
+        Some(Command::Play { megawad, profile }) => run_play_cmd(megawad, profile, repository),
+        Some(Command::Profile { cmd }) => run_profile_cmd(cmd, repository),
+        Some(Command::SourcePort { cmd }) => run_source_port_cmd(cmd, &repository),
         None => panic!("Eventually go into interactive mode"),
     };
     result

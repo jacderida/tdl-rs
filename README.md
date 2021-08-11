@@ -1,6 +1,6 @@
 # Terminal Doom Launcher
 
-Terminal Doom Launcher, or TDL, is a launcher application for Doom. A launcher is intended to make it easier to manage the multitude of different Source Ports, MegaWADs, supplementary WADs, demos and keep track of certain things, like favourite maps.
+Terminal Doom Launcher, or TDL, is a launcher application for Doom. A launcher is intended to make it easier to manage the multitude of different Source Ports, MegaWADs, supplementary WADs, demos, and also keep track of certain things, like favourite maps.
 
 As the name implies, rather than being driven by a GUI, TDL runs from the terminal. It has both a CLI and an interactive interface. The intention is for it to be fast to use for people who are already very familiar with a terminal environment.
 
