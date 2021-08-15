@@ -13,6 +13,7 @@ I do development on Linux, but I play on Windows, so I intend to have the applic
     - [Linux](#linux)
 - [Source Ports](#source-ports)
 - [Profiles](#profiles)
+- [WADs](#wads)
 
 ## Installation
 
@@ -42,3 +43,7 @@ Profiles provide a way to play the game using different options and configuratio
 When you run the `tdl play` command, it will launch with the default profile. If you want to use a different profile, you can use the optional `--profile` argument.
 
 Create a profile using the `profile add` command. To see all the possible options, use `tdl profile add --help`. Most of the options correspond to the arguments the game accepts.
+
+## WADs
+
+Using the `tdl iwad` and `tdl wad` commands, you can import IWADs and WADs into your collection. The `tdl wad import` command can be supplied an ID from the Doomworld idgames archive. It will download the WAD and text file specified by that ID. As the WADs are imported, the available maps will be parsed and will be available for selection when using the `play` command.

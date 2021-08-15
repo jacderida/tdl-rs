@@ -1,9 +1,11 @@
 pub mod play;
 pub mod profile;
 pub mod source_port;
+pub mod wad;
 
 use crate::commands::profile::ProfileCommand;
 use crate::commands::source_port::SourcePortCommand;
+use crate::commands::wad::WadCommand;
 use structopt::{clap::AppSettings, StructOpt};
 
 #[derive(StructOpt, Debug)]
@@ -41,5 +43,10 @@ pub enum Command {
     SourcePort {
         #[structopt(subcommand)]
         cmd: SourcePortCommand,
+    },
+    /// WAD Management
+    Wad {
+        #[structopt(subcommand)]
+        cmd: WadCommand,
     },
 }
