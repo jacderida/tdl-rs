@@ -1,8 +1,10 @@
+pub mod iwad;
 pub mod play;
 pub mod profile;
 pub mod source_port;
 pub mod wad;
 
+use crate::commands::iwad::IwadCommand;
 use crate::commands::profile::ProfileCommand;
 use crate::commands::source_port::SourcePortCommand;
 use crate::commands::wad::WadCommand;
@@ -43,6 +45,11 @@ pub enum Command {
     SourcePort {
         #[structopt(subcommand)]
         cmd: SourcePortCommand,
+    },
+    /// IWAD Management
+    Iwad {
+        #[structopt(subcommand)]
+        cmd: IwadCommand,
     },
     /// WAD Management
     Wad {

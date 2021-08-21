@@ -11,13 +11,18 @@ use std::path::PathBuf;
 
 #[test]
 fn wad_lsdir_command_should_fail_for_a_non_wad_file() {
+    let settings_dir = assert_fs::TempDir::new().unwrap();
+    let doom_home_dir = assert_fs::TempDir::new().unwrap();
     let invalid_wad = assert_fs::NamedTempFile::new("invalid.wad").unwrap();
     invalid_wad.write_binary(b"this is not a wad file").unwrap();
+
     let mut cmd = Command::cargo_bin("tdl").unwrap();
     cmd.arg("wad")
         .arg("lsdir")
         .arg("--path")
         .arg(invalid_wad.path().to_str().unwrap())
+        .env("TDL_SETTINGS_PATH", settings_dir.path().to_str().unwrap())
+        .env("TDL_DOOM_HOME_PATH", doom_home_dir.path().to_str().unwrap())
         .assert()
         .failure()
         .stderr(predicate::str::contains(format!(
@@ -31,12 +36,16 @@ fn wad_lsdir_command_should_fail_for_a_non_wad_file() {
 
 #[test]
 fn doom2_iwad_lsdir_command_should_correctly_parse_header() {
+    let settings_dir = assert_fs::TempDir::new().unwrap();
+    let doom_home_dir = assert_fs::TempDir::new().unwrap();
     let mut cmd = Command::cargo_bin("tdl").unwrap();
     cmd.arg("wad")
         .arg("lsdir")
         .arg("--path")
         .arg("test_iwads/DOOM2.WAD")
         .env("RUST_LOG", "debug")
+        .env("TDL_SETTINGS_PATH", settings_dir.path().to_str().unwrap())
+        .env("TDL_DOOM_HOME_PATH", doom_home_dir.path().to_str().unwrap())
         .assert()
         .success()
         .stderr(predicate::str::contains("type: IWAD"))
@@ -46,12 +55,17 @@ fn doom2_iwad_lsdir_command_should_correctly_parse_header() {
 
 #[test]
 fn doom2_iwad_lsdir_command_gets_the_correct_number_of_directory_entries() {
+    let settings_dir = assert_fs::TempDir::new().unwrap();
+    let doom_home_dir = assert_fs::TempDir::new().unwrap();
+
     let mut cmd = Command::cargo_bin("tdl").unwrap();
     cmd.arg("wad")
         .arg("lsdir")
         .arg("--path")
         .arg("test_iwads/DOOM2.WAD")
         .env("RUST_LOG", "debug")
+        .env("TDL_SETTINGS_PATH", settings_dir.path().to_str().unwrap())
+        .env("TDL_DOOM_HOME_PATH", doom_home_dir.path().to_str().unwrap())
         .assert()
         .success()
         .stderr(predicate::str::contains("Directory has 2919 entries"));
@@ -81,12 +95,17 @@ fn doom_iwad_lsdir_command_parse_the_directory_correctly() {
 
 #[test]
 fn doom_iwad_lsdir_command_should_correctly_parse_header() {
+    let settings_dir = assert_fs::TempDir::new().unwrap();
+    let doom_home_dir = assert_fs::TempDir::new().unwrap();
+
     let mut cmd = Command::cargo_bin("tdl").unwrap();
     cmd.arg("wad")
         .arg("lsdir")
         .arg("--path")
         .arg("test_iwads/DOOM.WAD")
         .env("RUST_LOG", "debug")
+        .env("TDL_SETTINGS_PATH", settings_dir.path().to_str().unwrap())
+        .env("TDL_DOOM_HOME_PATH", doom_home_dir.path().to_str().unwrap())
         .assert()
         .success()
         .stderr(predicate::str::contains("type: IWAD"))
@@ -96,12 +115,17 @@ fn doom_iwad_lsdir_command_should_correctly_parse_header() {
 
 #[test]
 fn doom_iwad_lsdir_command_gets_the_correct_number_of_directory_entries() {
+    let settings_dir = assert_fs::TempDir::new().unwrap();
+    let doom_home_dir = assert_fs::TempDir::new().unwrap();
+
     let mut cmd = Command::cargo_bin("tdl").unwrap();
     cmd.arg("wad")
         .arg("lsdir")
         .arg("--path")
         .arg("test_iwads/DOOM.WAD")
         .env("RUST_LOG", "debug")
+        .env("TDL_SETTINGS_PATH", settings_dir.path().to_str().unwrap())
+        .env("TDL_DOOM_HOME_PATH", doom_home_dir.path().to_str().unwrap())
         .assert()
         .success()
         .stderr(predicate::str::contains("Directory has 2306 entries"));
@@ -130,13 +154,18 @@ fn get_directory_from_lswad(wad_path: &impl AsRef<Path>) -> Vec<(String, u32, u3
 }
 
 fn get_directory_from_tdl(wad_path: &impl AsRef<Path>) -> Vec<(String, u32, u32)> {
+    let settings_dir = assert_fs::TempDir::new().unwrap();
+    let doom_home_dir = assert_fs::TempDir::new().unwrap();
     let mut directory: Vec<(String, u32, u32)> = Vec::new();
+
     let mut cmd = Command::cargo_bin("tdl").unwrap();
     cmd.arg("wad")
         .arg("lsdir")
         .arg("--path")
         .arg(&wad_path.as_ref().to_str().unwrap())
         .env("RUST_LOG", "debug")
+        .env("TDL_SETTINGS_PATH", settings_dir.path().to_str().unwrap())
+        .env("TDL_DOOM_HOME_PATH", doom_home_dir.path().to_str().unwrap())
         .assert()
         .success();
     for result in cmd.output().unwrap().stdout.lines() {
