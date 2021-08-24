@@ -1,4 +1,5 @@
 mod commands;
+mod find;
 mod profile;
 mod settings;
 mod source_port;
@@ -11,10 +12,12 @@ use crate::commands::profile::run_profile_cmd;
 use crate::commands::source_port::run_source_port_cmd;
 use crate::commands::wad::run_wad_cmd;
 use crate::commands::Command;
+use crate::find::select_map_to_play;
 use crate::settings::get_app_settings_dir_path;
 use crate::settings::FileSettingsRepository;
 use color_eyre::{Report, Result};
 use env_logger::Env;
+use log::info;
 use structopt::{clap::AppSettings::ColoredHelp, StructOpt};
 
 #[derive(StructOpt, Debug)]

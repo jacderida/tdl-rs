@@ -309,6 +309,11 @@ fn import_wad_file(wad_path: &PathBuf, wad_entry: &WadEntry) -> Result<(), Repor
     let settings = get_user_settings()?;
     let mut wad_import_path = settings.iwads_path.clone();
     wad_import_path.push(&wad_entry.name);
+    info!(
+        "Copying {} to {}",
+        wad_path.as_path().display(),
+        wad_import_path.as_path().display()
+    );
     std::fs::copy(wad_path, wad_import_path)?;
     Ok(())
 }

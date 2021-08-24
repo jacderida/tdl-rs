@@ -1,4 +1,5 @@
 use color_eyre::{eyre::ensure, Report, Result};
+use log::{debug, info};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -53,6 +54,7 @@ impl ObjectRepository {
     pub fn get<T: DeserializeOwned>(&self, id: &String) -> Result<T, Report> {
         let mut pb = PathBuf::from(&self.object_path);
         pb.push(format!("{}.json", id));
+        debug!("Deserializing {}", pb.as_path().display());
         let serialized = std::fs::read_to_string(pb.as_path().to_str().unwrap())?;
         Ok(serde_json::from_str(&serialized)?)
     }
@@ -77,6 +79,7 @@ impl ObjectRepository {
             !save_pb.exists(),
             format!("The ID '{}' is already taken.", id)
         );
+        info!("Saving entry for {}", id);
         std::fs::write(save_pb.as_path(), serialized)?;
         Ok(())
     }
