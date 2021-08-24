@@ -1,11 +1,15 @@
 use crate::profile::Profile;
+use crate::settings::get_app_settings_dir_path;
+use crate::settings::get_user_settings;
 use crate::settings::SettingsRegistry;
 use crate::settings::SettingsRepository;
 use crate::source_port::Skill;
 use crate::source_port::SourcePort;
+use crate::storage::ObjectRepository;
+use crate::wad::WadEntry;
 use color_eyre::{eyre::eyre, eyre::WrapErr, Report, Result};
 use log::info;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub fn run_play_cmd(
     megawad: String,
@@ -15,7 +19,7 @@ pub fn run_play_cmd(
     let settings = repository.get()?;
     let selected_profile = get_profile(&settings, profile)?;
     let source_port = get_source_port(&settings, &selected_profile)?;
-    let args = get_args(selected_profile, &megawad);
+    let args = get_args(selected_profile, &megawad)?;
     let mut source_port_path = source_port.path.to_owned();
 
     print_play_info(&source_port_path, &args);
@@ -71,10 +75,20 @@ fn get_source_port<'a>(
     Ok(source_port)
 }
 
-fn get_args(profile: &Profile, megawad: &String) -> Vec<String> {
+fn get_args(profile: &Profile, megawad: &String) -> Result<Vec<String>, Report> {
+    let mut wads_path = get_app_settings_dir_path()?;
+    wads_path.push("wads");
+
+    let repository = ObjectRepository::new(&wads_path)?;
+    let wad_entry: WadEntry = repository.get(megawad)?;
+
+    let user_settings = get_user_settings()?;
+    let mut iwad_entry_pb = PathBuf::from(user_settings.iwads_path);
+    iwad_entry_pb.push(wad_entry.name);
+
     let mut args: Vec<String> = Vec::new();
     args.push("-iwad".to_string());
-    args.push(megawad.to_owned());
+    args.push(iwad_entry_pb.as_path().to_str().unwrap().to_string());
     args.push("-skill".to_string());
     match profile.skill {
         Skill::Nightmare => args.push("5".to_string()),
@@ -89,7 +103,7 @@ fn get_args(profile: &Profile, megawad: &String) -> Vec<String> {
     if !profile.fullscreen {
         args.push("-nofullscreen".to_string());
     }
-    args
+    Ok(args)
 }
 
 fn print_play_info(source_port_path: impl AsRef<Path>, args: &Vec<String>) {
