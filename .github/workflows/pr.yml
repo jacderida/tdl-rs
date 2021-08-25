@@ -1,0 +1,57 @@
+name: PR
+
+on: [push, pull_request]
+env:
+  RUST_BACKTRACE: 1
+jobs:
+  checks:
+    if: "!startsWith(github.event.pull_request.title, 'Automated version bump')"
+    name: run checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        id: toolchain
+        name: install rustfmt and clippy
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+      - name: cargo caching
+        uses: actions/cache@v2.1.4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-cargo-cache-${{ hashFiles('**/Cargo.lock') }}
+      - name: run cargo fmt
+        run: cargo fmt --all -- --check
+      - name: run clippy
+        run: cargo clippy --all-targets --all-features
+  unit-tests:
+    name: run unit tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v2
+      - name: install rust
+        id: toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo caching
+        uses: actions/cache@v2.1.4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-cargo-cache-${{ hashFiles('**/Cargo.lock') }}
+      - name: run unit tests
+        run: cargo test --bin tdl

@@ -230,20 +230,14 @@ mod user_settings {
     #[test]
     fn set_from_doom_home_should_set_fields_correctly() {
         let doom_home = assert_fs::TempDir::new().unwrap();
+        let iwads_dir = doom_home.child("iwads");
+        let wads_dir = doom_home.child("wads");
+        let source_ports_dir = doom_home.child("source-ports");
         set_var("TDL_DOOM_HOME_PATH", doom_home.path().to_str().unwrap());
-        let sut = UserSettings::set_from_doom_home().unwrap();
-        assert_eq!(
-            sut.iwads_path.as_path().to_str().unwrap(),
-            format!("{}/iwads", doom_home.path().display())
-        );
-        assert_eq!(
-            sut.wads_path.as_path().to_str().unwrap(),
-            format!("{}/wads", doom_home.path().display())
-        );
-        assert_eq!(
-            sut.source_ports_path.as_path().to_str().unwrap(),
-            format!("{}/source-ports", doom_home.path().display())
-        );
+        let _ = UserSettings::set_from_doom_home().unwrap();
+        iwads_dir.assert(predicate::path::is_dir());
+        wads_dir.assert(predicate::path::is_dir());
+        source_ports_dir.assert(predicate::path::is_dir());
     }
 
     #[test]

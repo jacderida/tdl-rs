@@ -2,10 +2,12 @@ use crate::settings::get_app_settings_dir_path;
 use crate::storage::ObjectRepository;
 use crate::wad::WadEntry;
 use color_eyre::{Report, Result};
+#[cfg(target_family = "unix")]
 use skim::prelude::*;
 use std::io::Cursor;
 use std::path::Path;
 
+#[cfg(target_family = "unix")]
 pub fn select_map_to_play<'a>() -> Result<(String, String), Report> {
     let mut wads_path = get_app_settings_dir_path()?;
     wads_path.push("wads");
@@ -52,4 +54,9 @@ pub fn select_map_to_play<'a>() -> Result<(String, String), Report> {
         .unwrap()
         .to_owned();
     Ok((String::from(selected_wad), split[1].clone()))
+}
+
+#[cfg(target_family = "windows")]
+pub fn select_map_to_play<'a>() -> Result<(String, String), Report> {
+    unimplemented!();
 }
