@@ -45,5 +45,11 @@ pub fn select_map_to_play<'a>() -> Result<(String, String), Report> {
         .split(" ")
         .map(|s| String::from(s))
         .collect();
-    Ok((split[0].clone(), split[1].clone()))
+    let selected_wad = Path::new(&split[0].clone())
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+    Ok((String::from(selected_wad), split[1].clone()))
 }

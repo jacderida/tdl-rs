@@ -16,16 +16,25 @@ fn main() -> Result<(), Report> {
 
     // This is probably the most inelegant implementation ever devised for parsing arguments, but
     // it seems to work and it's just a dummy thing anyway.
+    let mut warp_arg = String::new();
     let mut prev = "".to_string();
     for arg in std::env::args().skip(1) {
-        if arg.starts_with("-") {
-            if flags.iter().any(|x| **x == arg) {
-                game_args.insert(arg.to_owned(), "true".to_string());
-            } else {
-                prev = arg.to_owned();
+        if prev == "-warp" {
+            println!("in here");
+            warp_arg.push_str(&format!("{} ", arg.to_owned()));
+            if warp_arg.len() >= 3 {
+                game_args.insert(prev.to_owned(), warp_arg.to_owned().trim().to_string());
             }
         } else {
-            game_args.insert(prev.to_owned(), arg.to_owned());
+            if arg.starts_with("-") {
+                if flags.iter().any(|x| **x == arg) {
+                    game_args.insert(arg.to_owned(), "true".to_string());
+                } else {
+                    prev = arg.to_owned();
+                }
+            } else {
+                game_args.insert(prev.to_owned(), arg.to_owned());
+            }
         }
     }
     for (arg, value) in game_args.iter() {

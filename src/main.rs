@@ -39,16 +39,27 @@ fn main() -> Result<(), Report> {
     let repository = FileSettingsRepository::new(app_settings_path)?;
     let args = CmdArgs::from_args();
     let result = match args.cmd {
-        Some(Command::Play { megawad, profile }) => {
+        Some(Command::Play {
+            megawad,
+            map,
+            profile,
+        }) => {
             let wad_to_play: String;
+            let map_to_play: Option<String>;
             if megawad.is_none() {
                 let selected = select_map_to_play()?;
                 wad_to_play = selected.0;
-                info!("Selected {}: {}", &wad_to_play, selected.1);
+                map_to_play = Some(selected.1.to_owned());
+                info!(
+                    "Selected {}: {}",
+                    &wad_to_play,
+                    map_to_play.as_ref().unwrap()
+                );
             } else {
                 wad_to_play = megawad.unwrap();
+                map_to_play = map;
             }
-            run_play_cmd(wad_to_play, profile, repository)
+            run_play_cmd(wad_to_play, map_to_play, profile, repository)
         }
         Some(Command::Profile { cmd }) => run_profile_cmd(cmd, repository),
         Some(Command::SourcePort { cmd }) => run_source_port_cmd(cmd, &repository),

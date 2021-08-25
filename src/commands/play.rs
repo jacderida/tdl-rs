@@ -13,13 +13,14 @@ use std::path::{Path, PathBuf};
 
 pub fn run_play_cmd(
     megawad: String,
+    map: Option<String>,
     profile: Option<String>,
     repository: impl SettingsRepository,
 ) -> Result<(), Report> {
     let settings = repository.get()?;
     let selected_profile = get_profile(&settings, profile)?;
     let source_port = get_source_port(&settings, &selected_profile)?;
-    let args = get_args(selected_profile, &megawad)?;
+    let args = get_args(selected_profile, &megawad, &map)?;
     let mut source_port_path = source_port.path.to_owned();
 
     print_play_info(&source_port_path, &args);
@@ -75,7 +76,11 @@ fn get_source_port<'a>(
     Ok(source_port)
 }
 
-fn get_args(profile: &Profile, megawad: &String) -> Result<Vec<String>, Report> {
+fn get_args(
+    profile: &Profile,
+    megawad: &String,
+    map: &Option<String>,
+) -> Result<Vec<String>, Report> {
     let mut wads_path = get_app_settings_dir_path()?;
     wads_path.push("wads");
 
@@ -102,6 +107,20 @@ fn get_args(profile: &Profile, megawad: &String) -> Result<Vec<String>, Report> 
     }
     if !profile.fullscreen {
         args.push("-nofullscreen".to_string());
+    }
+    if map.is_some() {
+        let map = wad_entry
+            .maps
+            .iter()
+            .find(|x| x.number == *map.as_ref().unwrap())
+            .ok_or_else(|| eyre!("Could not find {} in {}", map.as_ref().unwrap(), megawad))?;
+        args.push("-warp".to_string());
+        if map.warp.contains(" ") {
+            args.push(String::from(map.warp.chars().nth(0).unwrap()));
+            args.push(String::from(map.warp.chars().nth(2).unwrap()));
+        } else {
+            args.push(map.warp.clone());
+        }
     }
     Ok(args)
 }

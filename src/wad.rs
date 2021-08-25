@@ -37,10 +37,22 @@ pub struct WadMetadata {
     pub directory: Vec<WadDirectoryEntry>,
 }
 
+/// Structure that describes a map in the game.
+///
+/// The number will either be in MAPxx, for DOOM2, or ExMx for DOOM. For example, MAP03, or E1M3.
+/// The map will also have a name. Newer WADs contain MAPINFO lumps in the WAD, but the original
+/// IWADs did not contain these.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct MapInfo {
+    /// The map number. Either MAPxx or ExMx.
     pub number: String,
+    /// The name of the map.
     pub name: String,
+    /// The value to be used with the `-warp` argument on source ports. For DOOM2, this will be the
+    /// xx part of the number, e.g., for MAP01, `warp` will be 1, and for MAP12, it will be 12. For
+    /// DOOM, E1M1 will turn into "1 1". It's due to the latter that we store this as a string
+    /// rather than an integer.
+    pub warp: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -125,7 +137,23 @@ impl MapInfo {
             "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
         );
         ensure!(!name.is_empty(), "A name must be provided for the map.");
-        Ok(MapInfo { number, name })
+
+        let warp: String;
+        if DOOM2_FORMAT_REGEX.is_match(&number) {
+            let num_part = &number[3..];
+            if num_part.starts_with("0") {
+                warp = String::from(num_part.chars().nth(1).unwrap());
+            } else {
+                warp = String::from(num_part);
+            }
+        } else {
+            warp = format!(
+                "{} {}",
+                number.chars().nth(1).unwrap(),
+                number.chars().nth(3).unwrap()
+            );
+        }
+        Ok(MapInfo { number, name, warp })
     }
 
     pub fn is_valid_map_number(number: &String) -> bool {
@@ -176,10 +204,12 @@ mod mapinfo {
         let map = MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap();
         assert_eq!("MAP01", map.number);
         assert_eq!("Entryway", map.name);
+        assert_eq!("1", map.warp);
 
         let map = MapInfo::new("MAP12".to_string(), "The Factory".to_string()).unwrap();
         assert_eq!("MAP12", map.number);
         assert_eq!("The Factory", map.name);
+        assert_eq!("12", map.warp);
     }
 
     #[test]
@@ -187,6 +217,12 @@ mod mapinfo {
         let map = MapInfo::new("E1M1".to_string(), "Hanger".to_string()).unwrap();
         assert_eq!("E1M1", map.number);
         assert_eq!("Hanger", map.name);
+        assert_eq!("1 1", map.warp);
+
+        let map = MapInfo::new("E4M8".to_string(), "Hanger".to_string()).unwrap();
+        assert_eq!("E4M8", map.number);
+        assert_eq!("Hanger", map.name);
+        assert_eq!("4 8", map.warp);
     }
 
     #[test]

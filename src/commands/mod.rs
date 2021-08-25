@@ -22,6 +22,9 @@ pub enum Command {
         #[structopt(short, long)]
         /// The megawad to play, e.g. DOOM2
         megawad: Option<String>,
+        #[structopt(short = "w", long)]
+        /// The map to play. This should be in the form MAPxx for DOOM2 or ExMx for DOOM.
+        map: Option<String>,
         #[structopt(short, long)]
         /// Specify the profile to play with. If not supplied, the default profile will be used.
         profile: Option<String>,
