@@ -6,7 +6,7 @@ use color_eyre::{eyre::eyre, Report, Result};
 use lazy_static::lazy_static;
 use log::info;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -188,8 +188,8 @@ pub fn run_iwad_cmd(cmd: IwadCommand) -> Result<(), Report> {
             let metadata = WadMetadata::from_path(&path)?;
             let id = get_wad_entry_id(&path)?;
             let file_name = get_wad_file_name(&path)?;
-            let maps = get_maps_from_metadata(&file_name, &metadata)?;
-            let info = get_additional_wad_info(&file_name);
+            let maps = get_maps_from_metadata(file_name, &metadata)?;
+            let info = get_additional_wad_info(file_name);
             let entry = WadEntry::new(id, file_name.to_string(), info.0, info.1, info.2, maps)?;
             print_wad_info(&path, &entry);
             save_wad_entry(&entry)?;
@@ -199,7 +199,7 @@ pub fn run_iwad_cmd(cmd: IwadCommand) -> Result<(), Report> {
     Ok(())
 }
 
-fn get_wad_entry_id(path: &PathBuf) -> Result<String, Report> {
+fn get_wad_entry_id(path: &Path) -> Result<String, Report> {
     let temp = path.to_owned();
     let file_name = temp
         .file_name()
@@ -211,7 +211,7 @@ fn get_wad_entry_id(path: &PathBuf) -> Result<String, Report> {
     Ok(String::from(id.to_str().unwrap()))
 }
 
-fn get_wad_file_name(path: &PathBuf) -> Result<&str, Report> {
+fn get_wad_file_name(path: &Path) -> Result<&str, Report> {
     let file_name = path
         .file_name()
         .ok_or_else(|| eyre!("Could not retrieve filename from path"))?;
@@ -244,7 +244,7 @@ fn get_maps_from_metadata(
     let mut maps: Vec<MapInfo> = Vec::new();
     for map_entry in map_entries {
         let name = map_info.get(&map_entry as &str).unwrap();
-        maps.push(MapInfo::new(map_entry.clone(), String::from(name.clone()))?);
+        maps.push(MapInfo::new(map_entry.clone(), String::from(*name))?);
     }
     Ok(maps)
 }
@@ -285,7 +285,7 @@ fn get_additional_wad_info(wad_file_name: &str) -> (String, String, String) {
     info
 }
 
-fn print_wad_info(path: &PathBuf, wad_entry: &WadEntry) {
+fn print_wad_info(path: &Path, wad_entry: &WadEntry) {
     info!("Importing {}", path.display());
     info!("ID: {}", wad_entry.id);
     info!("WAD Name: {}", wad_entry.name);
@@ -305,13 +305,13 @@ fn save_wad_entry(wad_entry: &WadEntry) -> Result<(), Report> {
     Ok(())
 }
 
-fn import_wad_file(wad_path: &PathBuf, wad_entry: &WadEntry) -> Result<(), Report> {
+fn import_wad_file(wad_path: &Path, wad_entry: &WadEntry) -> Result<(), Report> {
     let settings = get_user_settings()?;
-    let mut wad_import_path = settings.iwads_path.clone();
+    let mut wad_import_path = settings.iwads_path;
     wad_import_path.push(&wad_entry.name);
     info!(
         "Copying {} to {}",
-        wad_path.as_path().display(),
+        wad_path.display(),
         wad_import_path.as_path().display()
     );
     std::fs::copy(wad_path, wad_import_path)?;

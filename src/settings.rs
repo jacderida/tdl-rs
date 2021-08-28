@@ -15,15 +15,15 @@ impl UserSettings {
     pub fn set_from_doom_home() -> Result<UserSettings, Report> {
         let path_var = std::env::var("TDL_DOOM_HOME_PATH")?;
         let doom_home_path = Path::new(&path_var);
-        let iwad_pb = PathBuf::from(doom_home_path.join("iwads"));
+        let iwad_pb = doom_home_path.join("iwads");
         if !iwad_pb.exists() {
             std::fs::create_dir_all(iwad_pb.as_path())?;
         }
-        let wad_pb = PathBuf::from(doom_home_path.join("wads"));
+        let wad_pb = doom_home_path.join("wads");
         if !wad_pb.exists() {
             std::fs::create_dir_all(wad_pb.as_path())?;
         }
-        let sp_pb = PathBuf::from(doom_home_path.join("source-ports"));
+        let sp_pb = doom_home_path.join("source-ports");
         if !sp_pb.exists() {
             std::fs::create_dir_all(sp_pb.as_path())?;
         }
@@ -98,7 +98,7 @@ pub fn get_app_settings_dir_path() -> Result<PathBuf, Report> {
     let mut home_path = dirs::home_dir().unwrap();
     home_path.push(".config");
     home_path.push("tdl");
-    let result = std::env::var("TDL_SETTINGS_PATH").map(|x| PathBuf::from(x));
+    let result = std::env::var("TDL_SETTINGS_PATH").map(PathBuf::from);
     let pb = result.unwrap_or(home_path);
     ensure!(
         !pb.is_file(),

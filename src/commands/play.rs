@@ -9,7 +9,7 @@ use crate::storage::ObjectRepository;
 use crate::wad::WadEntry;
 use color_eyre::{eyre::eyre, eyre::WrapErr, Report, Result};
 use log::info;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 pub fn run_play_cmd(
     megawad: String,
@@ -19,7 +19,7 @@ pub fn run_play_cmd(
 ) -> Result<(), Report> {
     let settings = repository.get()?;
     let selected_profile = get_profile(&settings, profile)?;
-    let source_port = get_source_port(&settings, &selected_profile)?;
+    let source_port = get_source_port(&settings, selected_profile)?;
     let args = get_args(selected_profile, &megawad, &map)?;
     let mut source_port_path = source_port.path.to_owned();
 
@@ -76,25 +76,22 @@ fn get_source_port<'a>(
     Ok(source_port)
 }
 
-fn get_args(
-    profile: &Profile,
-    megawad: &String,
-    map: &Option<String>,
-) -> Result<Vec<String>, Report> {
+fn get_args(profile: &Profile, megawad: &str, map: &Option<String>) -> Result<Vec<String>, Report> {
     let mut wads_path = get_app_settings_dir_path()?;
     wads_path.push("wads");
 
     let repository = ObjectRepository::new(&wads_path)?;
-    let wad_entry: WadEntry = repository.get(megawad)?;
+    let wad_entry: WadEntry = repository.get(&String::from(megawad))?;
 
     let user_settings = get_user_settings()?;
-    let mut iwad_entry_pb = PathBuf::from(user_settings.iwads_path);
+    let mut iwad_entry_pb = user_settings.iwads_path;
     iwad_entry_pb.push(wad_entry.name);
 
-    let mut args: Vec<String> = Vec::new();
-    args.push("-iwad".to_string());
-    args.push(iwad_entry_pb.as_path().to_str().unwrap().to_string());
-    args.push("-skill".to_string());
+    let mut args: Vec<String> = vec![
+        "-iwad".to_string(),
+        iwad_entry_pb.as_path().to_str().unwrap().to_string(),
+        "-skill".to_string(),
+    ];
     match profile.skill {
         Skill::Nightmare => args.push("5".to_string()),
         Skill::UltraViolence => args.push("4".to_string()),
@@ -115,17 +112,19 @@ fn get_args(
             .find(|x| x.number == *map.as_ref().unwrap())
             .ok_or_else(|| eyre!("Could not find {} in {}", map.as_ref().unwrap(), megawad))?;
         args.push("-warp".to_string());
-        if map.warp.contains(" ") {
-            args.push(String::from(map.warp.chars().nth(0).unwrap()));
+        if map.warp.contains(' ') {
+            // DOOM format.
+            args.push(String::from(map.warp.chars().next().unwrap()));
             args.push(String::from(map.warp.chars().nth(2).unwrap()));
         } else {
+            // DOOM2 format.
             args.push(map.warp.clone());
         }
     }
     Ok(args)
 }
 
-fn print_play_info(source_port_path: impl AsRef<Path>, args: &Vec<String>) {
+fn print_play_info(source_port_path: impl AsRef<Path>, args: &[String]) {
     info!("Running play command");
     info!("Launching {}", source_port_path.as_ref().display());
     info!("Using arguments: {}", args.join(" "));

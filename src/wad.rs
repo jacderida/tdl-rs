@@ -78,7 +78,7 @@ impl WadMetadata {
         wad_file: &mut impl Read,
     ) -> Result<WadHeader, Report> {
         let mut header = [0; 12];
-        wad_file.read(&mut header)?;
+        wad_file.read_exact(&mut header)?;
         let wad_type = String::from_utf8(header[..4].to_vec())?;
         if wad_type != "IWAD" && wad_type != "PWAD" {
             return Err(
@@ -100,10 +100,10 @@ impl WadMetadata {
         wad_file: &mut (impl Read + std::io::Seek),
         header: &WadHeader,
     ) -> Result<Vec<WadDirectoryEntry>, Report> {
-        let capacity = &header.directory_entries * DIRECTORY_ENTRY_SIZE;
+        let capacity = header.directory_entries * DIRECTORY_ENTRY_SIZE;
         let mut directory_buf: Vec<u8> = Vec::with_capacity(capacity.try_into()?);
-        &wad_file.seek(SeekFrom::Start(header.directory_offset.into()))?;
-        &wad_file.read_to_end(&mut directory_buf)?;
+        wad_file.seek(SeekFrom::Start(header.directory_offset.into()))?;
+        wad_file.read_to_end(&mut directory_buf)?;
 
         let mut directory: Vec<WadDirectoryEntry> = Vec::new();
         let mut cursor = Cursor::new(directory_buf);
@@ -112,7 +112,7 @@ impl WadMetadata {
             let lump_offset = cursor.read_u32::<LittleEndian>()?;
             let lump_size = cursor.read_u32::<LittleEndian>()?;
             let mut buffer = [0; 8];
-            cursor.read(&mut buffer)?;
+            cursor.read_exact(&mut buffer)?;
             let lump_name = String::from_utf8(buffer.to_vec())?;
             let lump_name = lump_name.trim_matches(char::from(0)).to_string(); // Strip UTF-8 terminator.
             directory.push(WadDirectoryEntry {
@@ -141,7 +141,7 @@ impl MapInfo {
         let warp: String;
         if DOOM2_FORMAT_REGEX.is_match(&number) {
             let num_part = &number[3..];
-            if num_part.starts_with("0") {
+            if num_part.starts_with('0') {
                 warp = String::from(num_part.chars().nth(1).unwrap());
             } else {
                 warp = String::from(num_part);
@@ -156,8 +156,8 @@ impl MapInfo {
         Ok(MapInfo { number, name, warp })
     }
 
-    pub fn is_valid_map_number(number: &String) -> bool {
-        DOOM_FORMAT_REGEX.is_match(&number) || DOOM2_FORMAT_REGEX.is_match(&number)
+    pub fn is_valid_map_number(number: &str) -> bool {
+        DOOM_FORMAT_REGEX.is_match(number) || DOOM2_FORMAT_REGEX.is_match(number)
     }
 }
 

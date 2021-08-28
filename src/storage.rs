@@ -51,7 +51,7 @@ impl ObjectRepository {
     ///
     /// Should only be related to IO or if the object being retrieved is not valid JSON (which
     /// shouldn't happen if it's been saved by this application).
-    pub fn get<T: DeserializeOwned>(&self, id: &String) -> Result<T, Report> {
+    pub fn get<T: DeserializeOwned>(&self, id: &str) -> Result<T, Report> {
         let mut pb = PathBuf::from(&self.object_path);
         pb.push(format!("{}.json", id));
         debug!("Deserializing {}", pb.as_path().display());
@@ -70,7 +70,7 @@ impl ObjectRepository {
     /// Result will be an error if there is already an object with the specified ID.
     ///
     /// Any other errors would be from file IO or the JSON library.
-    pub fn save<T: Serialize>(&self, id: &String, object: &T) -> Result<(), Report> {
+    pub fn save<T: Serialize>(&self, id: &str, object: &T) -> Result<(), Report> {
         ensure!(!id.is_empty(), "To save the object, its ID must be set.");
         let serialized = serde_json::to_string(&object)?;
         let mut save_pb = PathBuf::from(&self.object_path);
