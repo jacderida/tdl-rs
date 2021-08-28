@@ -21,7 +21,7 @@ pub enum WadCommand {
 
 pub fn run_wad_cmd(cmd: WadCommand) -> Result<(), Report> {
     match cmd {
-        WadCommand::LsDir { name, path } => {
+        WadCommand::LsDir { name: _, path } => {
             if let Some(path) = path {
                 let wad = WadMetadata::from_path(path)?;
                 debug!(

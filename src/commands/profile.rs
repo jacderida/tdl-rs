@@ -56,7 +56,7 @@ pub fn run_profile_cmd(
             );
             let mut is_default = default;
             let mut settings = repository.get()?;
-            if settings.profiles.len() == 0 {
+            if settings.profiles.is_empty() {
                 // If there are no existing profiles, the first one *must* be set as the default,
                 // even if the user didn't specify that.
                 is_default = true;
@@ -80,7 +80,7 @@ pub fn run_profile_cmd(
                 ))
                 .suggestion("Use the 'source-port list' command to find a valid Source Port"));
             }
-            if settings.profiles.len() > 0 && default {
+            if !settings.profiles.is_empty() && default {
                 let mut current = settings.profiles.iter_mut().find(|x| x.default).unwrap();
                 current.default = false;
                 info!("The current default profile is '{}'", current.name);
@@ -145,9 +145,9 @@ mod tests {
             SourcePortType::PrBoom
         );
         assert_eq!(settings.profiles[0].source_port_version, "2.6");
-        assert_eq!(settings.profiles[0].fullscreen, true);
-        assert_eq!(settings.profiles[0].music, true);
-        assert_eq!(settings.profiles[0].default, true);
+        assert!(settings.profiles[0].fullscreen);
+        assert!(settings.profiles[0].music);
+        assert!(settings.profiles[0].default);
         matches!(settings.profiles[0].skill, Skill::UltraViolence);
     }
 
@@ -189,9 +189,9 @@ mod tests {
             SourcePortType::PrBoom
         );
         assert_eq!(settings.profiles[0].source_port_version, "2.6");
-        assert_eq!(settings.profiles[0].fullscreen, true);
-        assert_eq!(settings.profiles[0].music, true);
-        assert_eq!(settings.profiles[0].default, true);
+        assert!(settings.profiles[0].fullscreen);
+        assert!(settings.profiles[0].music);
+        assert!(settings.profiles[0].default);
         matches!(settings.profiles[0].skill, Skill::UltraViolence);
     }
 
@@ -241,8 +241,8 @@ mod tests {
             SourcePortType::PrBoom
         );
         assert_eq!(settings.profiles[1].source_port_version, "2.6");
-        assert_eq!(settings.profiles[1].fullscreen, true);
-        assert_eq!(settings.profiles[1].music, false);
+        assert!(settings.profiles[1].fullscreen);
+        assert!(!settings.profiles[1].music);
         matches!(settings.profiles[1].skill, Skill::UltraViolence);
     }
 
@@ -286,16 +286,16 @@ mod tests {
         let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
         let settings = repo.get().unwrap();
         assert_eq!(settings.profiles.len(), 2);
-        assert_eq!(settings.profiles[0].default, false);
+        assert!(!settings.profiles[0].default);
         assert_eq!(settings.profiles[1].name, "prboom-nomusic");
         matches!(
             settings.profiles[1].source_port_type,
             SourcePortType::PrBoom
         );
         assert_eq!(settings.profiles[1].source_port_version, "2.6");
-        assert_eq!(settings.profiles[1].fullscreen, true);
-        assert_eq!(settings.profiles[1].music, false);
-        assert_eq!(settings.profiles[1].default, true);
+        assert!(settings.profiles[1].fullscreen);
+        assert!(!settings.profiles[1].music);
+        assert!(settings.profiles[1].default);
         matches!(settings.profiles[1].skill, Skill::UltraViolence);
     }
 
@@ -331,7 +331,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("The Source Port 'PrBoom' with version '2.7' does not exist")
+            "The Source Port 'PrBoom' with version '2.7' does not exist".to_string()
         )
     }
 }

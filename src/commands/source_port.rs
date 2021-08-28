@@ -164,7 +164,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            format!("There is already a PrBoom Source Port at version 2.6")
+            "There is already a PrBoom Source Port at version 2.6".to_string()
         )
     }
 

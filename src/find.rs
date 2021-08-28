@@ -8,7 +8,7 @@ use std::io::Cursor;
 use std::path::Path;
 
 #[cfg(target_family = "unix")]
-pub fn select_map_to_play<'a>() -> Result<(String, String), Report> {
+pub fn select_map_to_play() -> Result<(String, String), Report> {
     let mut wads_path = get_app_settings_dir_path()?;
     wads_path.push("wads");
 
@@ -40,12 +40,11 @@ pub fn select_map_to_play<'a>() -> Result<(String, String), Report> {
         .map(|out| out.selected_items)
         .unwrap();
     let split: Vec<String> = selected
-        .iter()
-        .nth(0)
+        .get(0)
         .unwrap()
         .output()
-        .split(" ")
-        .map(|s| String::from(s))
+        .split(' ')
+        .map(String::from)
         .collect();
     let selected_wad = Path::new(&split[0].clone())
         .file_stem()
@@ -53,7 +52,7 @@ pub fn select_map_to_play<'a>() -> Result<(String, String), Report> {
         .to_str()
         .unwrap()
         .to_owned();
-    Ok((String::from(selected_wad), split[1].clone()))
+    Ok((selected_wad, split[1].clone()))
 }
 
 #[cfg(target_family = "windows")]

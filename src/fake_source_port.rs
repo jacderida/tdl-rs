@@ -20,21 +20,20 @@ fn main() -> Result<(), Report> {
     let mut prev = "".to_string();
     for arg in std::env::args().skip(1) {
         if prev == "-warp" {
-            println!("in here");
+            // The warp argument is an annoying special case, where it sometimes requires 2 values.
+            // TODO: this actually needs to be fixed to look up the iwad.
             warp_arg.push_str(&format!("{} ", arg.to_owned()));
             if warp_arg.len() >= 3 {
                 game_args.insert(prev.to_owned(), warp_arg.to_owned().trim().to_string());
             }
-        } else {
-            if arg.starts_with("-") {
-                if flags.iter().any(|x| **x == arg) {
-                    game_args.insert(arg.to_owned(), "true".to_string());
-                } else {
-                    prev = arg.to_owned();
-                }
+        } else if arg.starts_with('-') {
+            if flags.iter().any(|x| **x == arg) {
+                game_args.insert(arg.to_owned(), "true".to_string());
             } else {
-                game_args.insert(prev.to_owned(), arg.to_owned());
+                prev = arg.to_owned();
             }
+        } else {
+            game_args.insert(prev.to_owned(), arg.to_owned());
         }
     }
     for (arg, value) in game_args.iter() {

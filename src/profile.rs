@@ -63,9 +63,9 @@ mod tests {
         matches!(profile.source_port_type, SourcePortType::PrBoom);
         assert_eq!(profile.source_port_version, "2.6um".to_string());
         matches!(profile.skill, Skill::UltraViolence);
-        assert_eq!(profile.fullscreen, true);
-        assert_eq!(profile.music, false);
-        assert_eq!(profile.default, true);
+        assert!(profile.fullscreen);
+        assert!(!profile.music);
+        assert!(profile.default);
     }
 
     #[test]

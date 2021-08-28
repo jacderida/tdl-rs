@@ -44,22 +44,19 @@ fn main() -> Result<(), Report> {
             map,
             profile,
         }) => {
-            let wad_to_play: String;
-            let map_to_play: Option<String>;
-            if megawad.is_none() {
+            if let Some(wad_to_play) = megawad {
+                run_play_cmd(wad_to_play, map, profile, repository)
+            } else {
                 let selected = select_map_to_play()?;
-                wad_to_play = selected.0;
-                map_to_play = Some(selected.1.to_owned());
+                let wad_to_play = selected.0;
+                let map_to_play = Some(selected.1);
                 info!(
                     "Selected {}: {}",
                     &wad_to_play,
                     map_to_play.as_ref().unwrap()
                 );
-            } else {
-                wad_to_play = megawad.unwrap();
-                map_to_play = map;
+                run_play_cmd(wad_to_play, map_to_play, profile, repository)
             }
-            run_play_cmd(wad_to_play, map_to_play, profile, repository)
         }
         Some(Command::Profile { cmd }) => run_profile_cmd(cmd, repository),
         Some(Command::SourcePort { cmd }) => run_source_port_cmd(cmd, &repository),
