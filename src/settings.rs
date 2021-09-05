@@ -94,12 +94,30 @@ impl SettingsRepository for FileSettingsRepository {
 /// ## Errors
 ///
 /// If `TDL_SETTINGS_PATH` points to an existing file.
+#[cfg(target_family = "unix")]
 pub fn get_app_settings_dir_path() -> Result<PathBuf, Report> {
     let mut home_path = dirs::home_dir().unwrap();
     home_path.push(".config");
     home_path.push("tdl");
     let result = std::env::var("TDL_SETTINGS_PATH").map(PathBuf::from);
     let pb = result.unwrap_or(home_path);
+    ensure!(
+        !pb.is_file(),
+        "The settings path cannot point to an existing file. \
+        It must be either an existing directory or a path that does not exist."
+    );
+    if !pb.exists() {
+        std::fs::create_dir_all(pb.as_path())?;
+    }
+    Ok(pb)
+}
+
+#[cfg(target_family = "windows")]
+pub fn get_app_settings_dir_path() -> Result<PathBuf, Report> {
+    let mut app_settings_path =
+        dirs::data_local_dir().ok_or_else(|| eyre!("Could not retrieve app settings directory"))?;
+    app_settings_path.push("tdl");
+    let pb = std::env::var("TDL_SETTINGS_PATH").map_or(app_settings_path, PathBuf::from);
     ensure!(
         !pb.is_file(),
         "The settings path cannot point to an existing file. \
