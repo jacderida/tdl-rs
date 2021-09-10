@@ -1,5 +1,5 @@
-use crate::settings::SettingsRepository;
 use crate::source_port::{SourcePort, SourcePortType};
+use crate::storage::AppSettingsRepository;
 use color_eyre::{eyre::eyre, Help, Report, Result};
 use log::{debug, info};
 use std::path::PathBuf;
@@ -22,7 +22,7 @@ pub enum SourcePortCommand {
 
 pub fn run_source_port_cmd(
     cmd: SourcePortCommand,
-    repository: &impl SettingsRepository,
+    repository: &AppSettingsRepository,
 ) -> Result<(), Report> {
     match cmd {
         SourcePortCommand::Add {
@@ -62,17 +62,16 @@ pub fn run_source_port_cmd(
 mod tests {
     use super::run_source_port_cmd;
     use super::SourcePortCommand;
-    use crate::settings::FileSettingsRepository;
-    use crate::settings::SettingsRegistry;
-    use crate::settings::SettingsRepository;
+    use crate::settings::AppSettings;
     use crate::source_port::SourcePort;
     use crate::source_port::SourcePortType;
+    use crate::storage::AppSettingsRepository;
     use assert_fs::prelude::*;
 
     #[test]
     fn add_source_port_cmd_should_save_the_first_source_port() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
         let sp_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         sp_exe.write_binary(b"fake source port code").unwrap();
@@ -100,11 +99,11 @@ mod tests {
     #[test]
     fn add_source_port_cmd_should_add_a_new_source_port() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
-        let settings = SettingsRegistry {
+        let settings = AppSettings {
             source_ports: vec![SourcePort {
                 source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
@@ -140,11 +139,11 @@ mod tests {
     #[test]
     fn add_source_port_cmd_should_not_allow_duplicate_type_version_combo() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
-        let settings = SettingsRegistry {
+        let settings = AppSettings {
             source_ports: vec![SourcePort {
                 source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
@@ -171,11 +170,11 @@ mod tests {
     #[test]
     fn add_source_port_cmd_should_allow_duplicate_type_with_different_version() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
-        let settings = SettingsRegistry {
+        let settings = AppSettings {
             source_ports: vec![SourcePort {
                 source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),

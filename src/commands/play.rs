@@ -1,10 +1,10 @@
 use crate::profile::Profile;
 use crate::settings::get_app_settings_dir_path;
 use crate::settings::get_user_settings;
-use crate::settings::SettingsRegistry;
-use crate::settings::SettingsRepository;
+use crate::settings::AppSettings;
 use crate::source_port::Skill;
 use crate::source_port::SourcePort;
+use crate::storage::AppSettingsRepository;
 use crate::storage::ObjectRepository;
 use crate::wad::WadEntry;
 use color_eyre::{eyre::eyre, eyre::WrapErr, Report, Result};
@@ -15,7 +15,7 @@ pub fn run_play_cmd(
     megawad: String,
     map: Option<String>,
     profile: Option<String>,
-    repository: impl SettingsRepository,
+    repository: AppSettingsRepository,
 ) -> Result<(), Report> {
     let settings = repository.get()?;
     let selected_profile = get_profile(&settings, profile)?;
@@ -32,7 +32,7 @@ pub fn run_play_cmd(
     Ok(())
 }
 
-fn get_profile(settings: &SettingsRegistry, profile: Option<String>) -> Result<&Profile, Report> {
+fn get_profile(settings: &AppSettings, profile: Option<String>) -> Result<&Profile, Report> {
     if let Some(p) = profile {
         let selected = settings
             .profiles
@@ -56,7 +56,7 @@ fn get_profile(settings: &SettingsRegistry, profile: Option<String>) -> Result<&
 }
 
 fn get_source_port<'a>(
-    settings: &'a SettingsRegistry,
+    settings: &'a AppSettings,
     profile: &'a Profile,
 ) -> Result<&'a SourcePort, Report> {
     let source_port = settings

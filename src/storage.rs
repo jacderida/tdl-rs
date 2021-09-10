@@ -1,4 +1,5 @@
-use color_eyre::{eyre::ensure, Report, Result};
+use crate::settings::AppSettings;
+use color_eyre::{eyre::ensure, eyre::eyre, Report, Result};
 use log::{debug, info};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -81,6 +82,40 @@ impl ObjectRepository {
         );
         info!("Saving entry for {}", id);
         std::fs::write(save_pb.as_path(), serialized)?;
+        Ok(())
+    }
+}
+
+pub struct AppSettingsRepository {
+    settings_path: PathBuf,
+}
+
+impl AppSettingsRepository {
+    pub fn new(settings_path: PathBuf) -> Result<AppSettingsRepository, Report> {
+        if !settings_path.exists() {
+            std::fs::write(
+                settings_path.to_str().unwrap(),
+                r#"{"source_ports":[], "profiles": []}"#,
+            )?;
+        }
+        Ok(AppSettingsRepository { settings_path })
+    }
+
+    pub fn get(&self) -> Result<AppSettings, Report> {
+        let path = self
+            .settings_path
+            .to_owned()
+            .into_os_string()
+            .into_string()
+            .map_err(|e| eyre!(format!("Could not convert {:?} to string", e)))?;
+        let serialized = std::fs::read_to_string(&path)?;
+        let settings: AppSettings = serde_json::from_str(&serialized)?;
+        Ok(settings)
+    }
+
+    pub fn save(&self, settings: AppSettings) -> Result<(), Report> {
+        let serialized = serde_json::to_string(&settings)?;
+        std::fs::write(self.settings_path.to_str().unwrap(), serialized)?;
         Ok(())
     }
 }
@@ -245,5 +280,96 @@ mod object_repo {
         assert_eq!(saved.release_date, entry.release_date);
         assert_eq!(saved.author, entry.author);
         assert_eq!(saved.maps.len(), entry.maps.len());
+    }
+}
+
+#[cfg(test)]
+mod app_settings_repo {
+    use super::AppSettings;
+    use super::AppSettingsRepository;
+    use crate::source_port::SourcePort;
+    use crate::source_port::SourcePortType;
+    use assert_fs::prelude::*;
+    use predicates::prelude::*;
+
+    #[test]
+    fn constructor_should_set_fields_correctly() {
+        let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
+        settings_file.write_str("json document").unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        assert_eq!(
+            repo.settings_path.to_str().unwrap(),
+            settings_file.path().to_str().unwrap()
+        );
+    }
+
+    #[test]
+    fn constructor_should_create_empty_json_object_if_settings_file_does_not_exist() {
+        let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
+        let _ = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        settings_file.assert(predicate::path::exists());
+        let settings_contents =
+            std::fs::read_to_string(settings_file.path().to_str().unwrap()).unwrap();
+        assert_eq!(settings_contents, r#"{"source_ports":[], "profiles": []}"#);
+    }
+
+    #[test]
+    fn save_should_serialize_the_settings_file_to_json() {
+        let sp_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
+        sp_exe.write_binary(b"fake source port code").unwrap();
+        let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
+        let settings = AppSettings {
+            source_ports: vec![SourcePort::new(
+                SourcePortType::PrBoom,
+                sp_exe.to_path_buf(),
+                "2.6",
+            )
+            .unwrap()],
+            profiles: Vec::new(),
+        };
+        let serialized_settings = serde_json::to_string(&settings).unwrap();
+
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let _ = repo.save(settings);
+
+        settings_file.assert(predicate::path::exists());
+        let settings_contents =
+            std::fs::read_to_string(settings_file.path().to_str().unwrap()).unwrap();
+        assert_eq!(settings_contents, serialized_settings);
+    }
+
+    #[test]
+    fn get_should_deserialize_the_settings_file_and_return_the_settings_registry() {
+        let sp_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
+        sp_exe.write_binary(b"fake source port code").unwrap();
+        let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
+        let settings = AppSettings {
+            source_ports: vec![SourcePort::new(
+                SourcePortType::PrBoom,
+                sp_exe.to_path_buf(),
+                "2.6",
+            )
+            .unwrap()],
+            profiles: Vec::new(),
+        };
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let _ = repo.save(settings);
+
+        let retrieved_settings = repo.get().unwrap();
+
+        settings_file.assert(predicate::path::exists());
+        let sp = &retrieved_settings.source_ports[0];
+        matches!(sp.source_port_type, SourcePortType::PrBoom);
+        assert_eq!(sp.path.to_str().unwrap(), sp_exe.path().to_str().unwrap());
+        assert_eq!(sp.version, "2.6");
+    }
+
+    #[test]
+    fn get_should_return_an_empty_initialised_settings_registry_if_no_settings_have_yet_been_saved()
+    {
+        let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let retrieved_settings = repo.get().unwrap();
+        assert_eq!(retrieved_settings.source_ports.len(), 0);
     }
 }

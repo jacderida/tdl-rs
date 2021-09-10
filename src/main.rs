@@ -14,7 +14,7 @@ use crate::commands::wad::run_wad_cmd;
 use crate::commands::Command;
 use crate::find::select_map_to_play;
 use crate::settings::get_app_settings_dir_path;
-use crate::settings::FileSettingsRepository;
+use crate::storage::AppSettingsRepository;
 use color_eyre::{Report, Result};
 use env_logger::Env;
 use log::info;
@@ -36,7 +36,7 @@ fn main() -> Result<(), Report> {
         .init();
     let mut app_settings_path = get_app_settings_dir_path()?;
     app_settings_path.push("app_settings.json");
-    let repository = FileSettingsRepository::new(app_settings_path)?;
+    let repository = AppSettingsRepository::new(app_settings_path)?;
     let args = CmdArgs::from_args();
     let result = match args.cmd {
         Some(Command::Play {

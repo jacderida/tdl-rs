@@ -1,6 +1,6 @@
 use crate::profile::Profile;
-use crate::settings::SettingsRepository;
 use crate::source_port::{Skill, SourcePortType};
+use crate::storage::AppSettingsRepository;
 use color_eyre::{eyre::eyre, Help, Report, Result};
 use log::{debug, info};
 use structopt::StructOpt;
@@ -37,7 +37,7 @@ pub enum ProfileCommand {
 
 pub fn run_profile_cmd(
     cmd: ProfileCommand,
-    repository: impl SettingsRepository,
+    repository: AppSettingsRepository,
 ) -> Result<(), Report> {
     match cmd {
         ProfileCommand::Add {
@@ -100,21 +100,20 @@ mod tests {
     use super::Profile;
     use super::ProfileCommand;
     use super::Skill;
-    use crate::settings::FileSettingsRepository;
-    use crate::settings::SettingsRegistry;
-    use crate::settings::SettingsRepository;
+    use crate::settings::AppSettings;
     use crate::source_port::SourcePort;
     use crate::source_port::SourcePortType;
+    use crate::storage::AppSettingsRepository;
     use assert_fs::prelude::*;
 
     #[test]
     fn add_profile_cmd_should_save_the_first_profile() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
-        let settings = SettingsRegistry {
+        let settings = AppSettings {
             source_ports: vec![SourcePort {
                 source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
@@ -136,7 +135,7 @@ mod tests {
 
         run_profile_cmd(cmd, repo).unwrap();
 
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
         let settings = repo.get().unwrap();
         assert_eq!(settings.profiles.len(), 1);
         assert_eq!(settings.profiles[0].name, "default");
@@ -154,11 +153,11 @@ mod tests {
     #[test]
     fn add_profile_cmd_should_save_the_first_profile_and_ensure_it_is_marked_default() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
-        let settings = SettingsRegistry {
+        let settings = AppSettings {
             source_ports: vec![SourcePort {
                 source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
@@ -180,7 +179,7 @@ mod tests {
 
         run_profile_cmd(cmd, repo).unwrap();
 
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
         let settings = repo.get().unwrap();
         assert_eq!(settings.profiles.len(), 1);
         assert_eq!(settings.profiles[0].name, "default");
@@ -198,11 +197,11 @@ mod tests {
     #[test]
     fn add_profile_cmd_should_add_a_new_profile() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
-        let settings = SettingsRegistry {
+        let settings = AppSettings {
             source_ports: vec![SourcePort {
                 source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
@@ -232,7 +231,7 @@ mod tests {
 
         run_profile_cmd(cmd, repo).unwrap();
 
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
         let settings = repo.get().unwrap();
         assert_eq!(settings.profiles.len(), 2);
         assert_eq!(settings.profiles[1].name, "prboom-nomusic");
@@ -249,11 +248,11 @@ mod tests {
     #[test]
     fn add_profile_cmd_should_add_a_new_default_profile_and_override_the_current_default() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
-        let settings = SettingsRegistry {
+        let settings = AppSettings {
             source_ports: vec![SourcePort {
                 source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
@@ -283,7 +282,7 @@ mod tests {
 
         run_profile_cmd(cmd, repo).unwrap();
 
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
         let settings = repo.get().unwrap();
         assert_eq!(settings.profiles.len(), 2);
         assert!(!settings.profiles[0].default);
@@ -302,11 +301,11 @@ mod tests {
     #[test]
     fn add_profile_cmd_should_not_allow_invalid_source_port_reference() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = FileSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
-        let settings = SettingsRegistry {
+        let settings = AppSettings {
             source_ports: vec![SourcePort {
                 source_port_type: SourcePortType::PrBoom,
                 path: prboom_exe.path().to_path_buf(),
