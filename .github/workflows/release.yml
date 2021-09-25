@@ -1,0 +1,106 @@
+name: release
+
+on:
+  push:
+    branches:
+      - master
+env:
+  RUST_BACKTRACE: 1
+jobs:
+  build:
+    name: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - os: windows-latest
+            bin_name: tdl.exe
+          - os: macos-latest
+            bin_name: tdl
+          - os: ubuntu-latest
+            bin_name: tdl
+    steps:
+      - uses: actions/checkout@v2
+      - name: install rust
+        id: toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: build
+        run: cargo build --release --bin tdl
+      - uses: actions/upload-artifact@master
+        with:
+          name: tdl-${{ matrix.os }}
+          path: target/release/${{ matrix.bin_name }}
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    needs: build
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    if: "startsWith(github.event.head_commit.message, 'release:')"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/download-artifact@master
+        with:
+          name: tdl-ubuntu-latest
+          path: artifacts/linux
+      - uses: actions/download-artifact@master
+        with:
+          name: tdl-windows-latest
+          path: artifacts/win
+      - uses: actions/download-artifact@master
+        with:
+          name: tdl-macos-latest
+          path: artifacts/macos
+      - name: get version number
+        id: version
+        run: |
+          version=$(cat VERSION)
+          echo "::set-output name=version::$version"
+      - name: package artifacts for release
+        run: |
+          version=$(cat VERSION)
+          mkdir release
+          (cd artifacts/win && tar -zcvf ../../release/tdl-$version-x86_64-pc-windows-msvc.tar.gz tdl.exe)
+          (cd artifacts/linux && tar -zcvf ../../release/tdl-$version-x86_64-unknown-linux.tar.gz tdl)
+          (cd artifacts/macos && tar -zcvf ../../release/tdl-$version-x86_64-apple-darwin.tar.gz tdl)
+      - name: generate release description
+        shell: bash
+        id: release_description
+        run: |
+          cd resources/scripts
+          ./generate_release_description.sh "${{ steps.version.outputs.version }}"
+      - name: create github release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          release_name: tdl v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          body_path: release_description.txt
+      - name: upload linux artifact
+        uses: actions/upload-release-asset@v1.0.1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release/tdl-${{ steps.version.outputs.version }}-x86_64-unknown-linux.tar.gz
+          asset_name: tdl-${{ steps.version.outputs.version }}-x86_64-unknown-linux.tar.gz
+          asset_content_type: application/zip
+      - name: upload windows artifact
+        uses: actions/upload-release-asset@v1.0.1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release/tdl-${{ steps.version.outputs.version }}-x86_64-pc-windows-msvc.tar.gz
+          asset_name: tdl-${{ steps.version.outputs.version }}-x86_64-pc-windows-msvc.tar.gz
+          asset_content_type: application/zip
+      - name: upload macos artifact
+        uses: actions/upload-release-asset@v1.0.1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: release/tdl-${{ steps.version.outputs.version }}-x86_64-apple-darwin.tar.gz
+          asset_name: tdl-${{ steps.version.outputs.version }}-x86_64-apple-darwin.tar.gz
+          asset_content_type: application/zip
