@@ -3,11 +3,18 @@
 /// copying the IWADs there. These tests will just need to be executed locally.
 use assert_cmd::Command;
 use assert_fs::prelude::*;
+use color_eyre::{Report, Result};
 use duct::cmd;
 use predicates::prelude::*;
-use std::io::{BufRead, BufReader};
-use std::path::Path;
-use std::path::PathBuf;
+use std::cmp::min;
+use std::io::{BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
+
+const XWADTOOLS_VERSION: &str = "1.0.0";
+#[cfg(target_family = "unix")]
+const XWADTOOLS_ARCHIVE_URL: &str = "https://github.com/jacderida/xwadtools/releases/download/v1.0.0/xwadtools-1.0.0-linux-x86_64.tar.gz";
+#[cfg(target_family = "windows")]
+const XWADTOOLS_ARCHIVE_URL: &str = "https://github.com/jacderida/xwadtools/releases/download/v1.0.0/xwadtools-1.0.0-win-x86_64.tar.gz";
 
 #[test]
 fn wad_lsdir_command_should_fail_for_a_non_wad_file() {
@@ -132,13 +139,10 @@ fn doom_iwad_lsdir_command_gets_the_correct_number_of_directory_entries() {
 }
 
 fn get_directory_from_lswad(wad_path: &impl AsRef<Path>) -> Vec<(String, u32, u32)> {
-    let handle = cmd!(
-        "/home/chris/dev/misc/xwadtools/lswad/lswad",
-        "-ls",
-        &wad_path.as_ref().to_str().unwrap()
-    )
-    .reader()
-    .unwrap();
+    let lswad_path = setup_lswad().unwrap();
+    let handle = cmd!(lswad_path, "-ls", &wad_path.as_ref().to_str().unwrap())
+        .reader()
+        .unwrap();
 
     let mut lswad_directory: Vec<(String, u32, u32)> = Vec::new();
     let reader = BufReader::new(handle);
@@ -181,4 +185,83 @@ fn get_directory_from_tdl(wad_path: &impl AsRef<Path>) -> Vec<(String, u32, u32)
         directory.push((lump_name.to_string(), lump_size, lump_offset));
     }
     directory
+}
+
+/// Download and extract lswad from the xwadtools archive.
+///
+/// The OS temp directory will be used. The file will only be downloaded and extracted if it
+/// doesn't already exist.
+///
+/// The reason this is done in Rust and not using something like a pre-test step in a Makefile is
+/// because this is a cross platform implementation that wouldn't rely on installing different
+/// tools on each OS.
+fn setup_lswad() -> Result<PathBuf> {
+    let (dir_path, file_path) = get_lswad_dest()?;
+    if !file_path.is_file() {
+        let archive_path = &dir_path
+            .as_path()
+            .join("xwadtools-1.0.0-linux-x86_64.tar.gz");
+        std::fs::create_dir_all(&dir_path)?;
+        download_archive(archive_path)?;
+        extract_archive(archive_path, &dir_path)?;
+        std::fs::remove_file(&archive_path)?;
+    }
+    Ok(file_path)
+}
+
+#[cfg(target_family = "unix")]
+fn get_lswad_dest() -> Result<(PathBuf, PathBuf), Report> {
+    let mut file_path = std::env::temp_dir();
+    file_path.push(format!("xwadtools-{}/lswad", XWADTOOLS_VERSION));
+    let mut dir_path = file_path.clone();
+    dir_path.pop();
+    Ok((dir_path, file_path))
+}
+
+#[cfg(target_family = "windows")]
+fn get_lswad_dest() -> Result<(PathBuf, PathBuf), Report> {
+    let mut file_path = std::env::temp_dir();
+    file_path.push(format!("xwadtools-{}\\lswad.exe", XWADTOOLS_VERSION));
+    let mut dir_path = file_path.clone();
+    dir_path.pop();
+    Ok((dir_path, file_path))
+}
+
+fn download_archive(dest_path: &Path) -> Result<(), Report> {
+    let mut archive_file = std::fs::File::create(dest_path)?;
+    let resp = reqwest::blocking::Client::new()
+        .get(XWADTOOLS_ARCHIVE_URL)
+        .send()?;
+    let size = resp
+        .headers()
+        .get(reqwest::header::CONTENT_LENGTH)
+        .map(|val| {
+            val.to_str()
+                .map(|s| s.parse::<u64>().unwrap_or(0))
+                .unwrap_or(0)
+        })
+        .unwrap_or(0);
+    let mut src = BufReader::new(resp);
+    let mut downloaded = 0;
+    loop {
+        let n = {
+            let buf = src.fill_buf()?;
+            archive_file.write_all(buf)?;
+            buf.len()
+        };
+        if n == 0 {
+            break;
+        }
+        src.consume(n);
+        downloaded = min(downloaded + n as u64, size);
+    }
+    Ok(())
+}
+
+fn extract_archive(archive_path: &Path, dest_path: &Path) -> Result<(), Report> {
+    let tar_gz = std::fs::File::open(archive_path)?;
+    let tar = flate2::read::GzDecoder::new(tar_gz);
+    let mut archive = tar::Archive::new(tar);
+    archive.unpack(dest_path)?;
+    Ok(())
 }
