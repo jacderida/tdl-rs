@@ -1,5 +1,7 @@
 use crate::profile::Profile;
 use crate::source_port::SourcePort;
+#[cfg(target_family = "windows")]
+use color_eyre::eyre::eyre;
 use color_eyre::{eyre::ensure, Report, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
