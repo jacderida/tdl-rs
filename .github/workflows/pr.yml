@@ -1,6 +1,6 @@
 name: PR
 
-on: [push, pull_request]
+on: pull_request
 env:
   RUST_BACKTRACE: 1
 jobs:

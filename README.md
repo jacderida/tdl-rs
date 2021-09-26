@@ -2,15 +2,14 @@
 
 Terminal Doom Launcher, or TDL, is a launcher application for Doom. A launcher is intended to make it easier to manage the multitude of different Source Ports, MegaWADs, supplementary WADs, demos, and also keep track of certain things, like favourite maps.
 
-As the name implies, rather than being driven by a GUI, TDL runs from the terminal. It has both a CLI and an interactive interface. The intention is for it to be fast to use for people who are already very familiar with a terminal environment.
-
-I do development on Linux, but I play on Windows, so I intend to have the application be fully functional in Powershell.
+As the name implies, rather than being driven by a GUI, TDL runs from the terminal. The intention is for it to be fast to use for people who are already very familiar with a terminal environment.
 
 ## Using TDL
 
 - [Installation](#installation)
     - [Windows](#windows)
     - [Linux](#linux)
+- [Getting Started](#getting-started)
 - [Source Ports](#source-ports)
 - [Profiles](#profiles)
 - [WADs](#wads)
@@ -24,6 +23,16 @@ There will be a Chocolatey package and Powershell script available for installat
 ### Linux
 
 There will be a Bash script available for installation on Linux.
+
+## Getting Started
+
+After you've installed TDL, you only need to take a few steps to get started playing:
+
+* Download a source port like PrBoom UMAPINFO (NOTE: this will be replaced by using TDL to install one)
+* Run `tdl source-port add prboomumapinfo ~/doom/source-ports/prboom-2.6um/prboom-plus 2.6um` to add the source port to TDL (NOTE: this will be removed with the install command)
+* Run `tdl profile add` specifying the values you want (NOTE: this will be replaced with an interactive mode that lets the user do it with their chosen text editor)
+* Run `tdl iwad import --path ~/doom/iwads/DOOM2.WAD` (NOTE: this will be replaced with `tdl iwad import .` to import all the IWADs in a directory)
+* Run `tdl play` and use the fuzzy finder to select the MAP to play
 
 ## Source Ports
 

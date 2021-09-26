@@ -3,7 +3,7 @@ name: release
 on:
   push:
     branches:
-      - master
+      - main
 env:
   RUST_BACKTRACE: 1
 jobs:
