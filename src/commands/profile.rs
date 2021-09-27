@@ -1,23 +1,30 @@
 use crate::profile::Profile;
 use crate::source_port::{Skill, SourcePortType};
 use crate::storage::AppSettingsRepository;
-use color_eyre::{eyre::eyre, Help, Report, Result};
+use color_eyre::{eyre::eyre, eyre::WrapErr, Help, Report, Result};
 use log::{debug, info};
+use serde_hjson::{Map, Value};
+use std::io::Write;
 use structopt::StructOpt;
+use tempfile::NamedTempFile;
 
 #[derive(Debug, StructOpt)]
 pub enum ProfileCommand {
     #[structopt(name = "add")]
-    /// Add a profile
+    /// Add a profile. If the `--name` argument is not supplied, this command will run in
+    /// interactive mode and launch the editor specified by the EDITOR variable.
     Add {
         /// The name of the profile
-        name: String,
+        #[structopt(short, long)]
+        name: Option<String>,
         /// The source port type. This must refer to a Source Port that has been added with the
         /// `source-port add` command.
-        source_port_type: SourcePortType,
+        #[structopt(name = "type", short, long)]
+        source_port_type: Option<SourcePortType>,
         /// The source port version. This must refer to a Source Port that has been added with the
         /// `source-port add` command.
-        source_port_version: String,
+        #[structopt(name = "version", short, long)]
+        source_port_version: Option<String>,
         #[structopt(short, long)]
         /// Controls whether this profile runs in fullscreen mode
         fullscreen: bool,
@@ -26,7 +33,8 @@ pub enum ProfileCommand {
         music: bool,
         /// Set the default skill level for this profile. Valid values are TooYoungToDie,
         /// HeyNotTooRough, HurtMePlenty, UltraViolence or Nightmare.
-        skill: Skill,
+        #[structopt(name = "skill", short, long)]
+        skill: Option<Skill>,
         #[structopt(short, long)]
         /// Use this flag to set this profile as the default. Note, only one profile can be set as
         /// the default, so if this flag is used, the current default will be overriden with this
@@ -50,10 +58,6 @@ pub fn run_profile_cmd(
             default,
         } => {
             debug!("Running add profile command");
-            debug!(
-                "Using values: name: {}, source_port_type: {:?}, source_port_version: {}, fullscreen: {}, music: {}, skill: {:?}, default: {}",
-                &name, source_port_type, source_port_version, fullscreen, music, skill, default
-            );
             let mut is_default = default;
             let mut settings = repository.get()?;
             if settings.profiles.is_empty() {
@@ -61,24 +65,44 @@ pub fn run_profile_cmd(
                 // even if the user didn't specify that.
                 is_default = true;
             }
+            let profile = if let Some(name) = name {
+                let source_port_type = source_port_type.unwrap();
+                let source_port_version = source_port_version.unwrap();
+                let skill = skill.unwrap();
+                Profile::new(
+                    &name,
+                    source_port_type,
+                    source_port_version.to_owned(),
+                    skill.to_owned(),
+                    fullscreen,
+                    music,
+                    is_default,
+                )?
+            } else {
+                get_profile_in_interactive_mode()?
+            };
 
-            let profile = Profile::new(
-                &name,
-                source_port_type,
-                source_port_version.to_owned(),
-                skill,
+            debug!(
+                "Using values: name: {}, type: {:?}, version: {}, fullscreen: {}, music: {},\
+                skill: {:?}, default: {}",
+                &profile.name,
+                profile.source_port_type,
+                profile.source_port_version,
                 fullscreen,
                 music,
-                is_default,
-            )?;
+                profile.skill,
+                default
+            );
+
             if !settings.source_ports.iter().any(|sp| {
-                sp.source_port_type == source_port_type && sp.version == source_port_version
+                sp.source_port_type == profile.source_port_type
+                    && sp.version == profile.source_port_version
             }) {
                 return Err(eyre!(format!(
                     "The Source Port '{:?}' with version '{}' does not exist",
-                    &source_port_type, source_port_version
+                    &profile.source_port_type, profile.source_port_version
                 ))
-                .suggestion("Use the 'source-port list' command to find a valid Source Port"));
+                .suggestion("Use the 'source-port ls' command to find a valid source port"));
             }
             if !settings.profiles.is_empty() && default {
                 let mut current = settings.profiles.iter_mut().find(|x| x.default).unwrap();
@@ -86,12 +110,57 @@ pub fn run_profile_cmd(
                 info!("The current default profile is '{}'", current.name);
                 info!("The newly added profile will now be set as the default");
             }
-            settings.profiles.push(profile);
+            settings.profiles.push(profile.to_owned());
             repository.save(settings)?;
-            info!("Added new profile '{}'", name);
+            info!("Added new profile '{}'", &profile.name);
         }
     }
     Ok(())
+}
+
+fn get_profile_in_interactive_mode() -> Result<Profile, Report> {
+    info!("The `--name` argument wasn't supplied, so we will use interactive mode to add the profile.");
+    let add_profile_template = include_bytes!("../../resources/add_profile_template.hjson");
+    let mut temp_file = NamedTempFile::new()?;
+    temp_file.write_all(add_profile_template)?;
+    let editor = std::env::var("EDITOR")
+        .wrap_err("The EDITOR environment variable was not set.")
+        .suggestion(
+            "Please set the EDITOR variable to e.g. 'vim', 'nvim' or 'nano'.\
+             Note: the locations for those must be on PATH.",
+        )?;
+    if editor == "nvim" || editor == "vim" {
+        duct::cmd!(editor, "+set filetype=hjson", temp_file.path()).run()?;
+    } else {
+        duct::cmd!(editor, temp_file.path()).run()?;
+    }
+
+    let profile_as_hjson = std::fs::read_to_string(&temp_file)?;
+    let json_profile: Map<String, Value> = serde_hjson::from_str(&profile_as_hjson).unwrap();
+    let source_port_type = json_profile
+        .get("type")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .parse::<SourcePortType>()
+        .map_err(|e| eyre!("Error parsing source port type: {}", e))?;
+    let skill = json_profile
+        .get("skill")
+        .unwrap()
+        .as_str()
+        .unwrap()
+        .parse::<Skill>()
+        .map_err(|e| eyre!("Error parsing skill type: {}", e))?;
+    let profile = Profile::new(
+        json_profile.get("name").unwrap().as_str().unwrap(),
+        source_port_type,
+        String::from(json_profile.get("version").unwrap().as_str().unwrap()),
+        skill,
+        json_profile.get("fullscreen").unwrap().as_bool().unwrap(),
+        json_profile.get("music").unwrap().as_bool().unwrap(),
+        json_profile.get("default").unwrap().as_bool().unwrap(),
+    )?;
+    Ok(profile)
 }
 
 #[cfg(test)]
@@ -124,12 +193,12 @@ mod tests {
         repo.save(settings).unwrap();
 
         let cmd = ProfileCommand::Add {
-            name: "default".to_string(),
-            source_port_type: SourcePortType::PrBoom,
-            source_port_version: "2.6".to_string(),
+            name: Some("default".to_string()),
+            source_port_type: Some(SourcePortType::PrBoom),
+            source_port_version: Some("2.6".to_string()),
             fullscreen: true,
             music: true,
-            skill: Skill::UltraViolence,
+            skill: Some(Skill::UltraViolence),
             default: true,
         };
 
@@ -168,12 +237,12 @@ mod tests {
         repo.save(settings).unwrap();
 
         let cmd = ProfileCommand::Add {
-            name: "default".to_string(),
-            source_port_type: SourcePortType::PrBoom,
-            source_port_version: "2.6".to_string(),
+            name: Some("default".to_string()),
+            source_port_type: Some(SourcePortType::PrBoom),
+            source_port_version: Some("2.6".to_string()),
             fullscreen: true,
             music: true,
-            skill: Skill::UltraViolence,
+            skill: Some(Skill::UltraViolence),
             default: false,
         };
 
@@ -220,12 +289,12 @@ mod tests {
         repo.save(settings).unwrap();
 
         let cmd = ProfileCommand::Add {
-            name: "prboom-nomusic".to_string(),
-            source_port_type: SourcePortType::PrBoom,
-            source_port_version: "2.6".to_string(),
+            name: Some("prboom-nomusic".to_string()),
+            source_port_type: Some(SourcePortType::PrBoom),
+            source_port_version: Some("2.6".to_string()),
             fullscreen: true,
             music: false,
-            skill: Skill::UltraViolence,
+            skill: Some(Skill::UltraViolence),
             default: false,
         };
 
@@ -271,12 +340,12 @@ mod tests {
         repo.save(settings).unwrap();
 
         let cmd = ProfileCommand::Add {
-            name: "prboom-nomusic".to_string(),
-            source_port_type: SourcePortType::PrBoom,
-            source_port_version: "2.6".to_string(),
+            name: Some("prboom-nomusic".to_string()),
+            source_port_type: Some(SourcePortType::PrBoom),
+            source_port_version: Some("2.6".to_string()),
             fullscreen: true,
             music: false,
-            skill: Skill::UltraViolence,
+            skill: Some(Skill::UltraViolence),
             default: true,
         };
 
@@ -316,12 +385,12 @@ mod tests {
         repo.save(settings).unwrap();
 
         let cmd = ProfileCommand::Add {
-            name: "default".to_string(),
-            source_port_type: SourcePortType::PrBoom,
-            source_port_version: "2.7".to_string(),
+            name: Some("default".to_string()),
+            source_port_type: Some(SourcePortType::PrBoom),
+            source_port_version: Some("2.7".to_string()),
             fullscreen: true,
             music: true,
-            skill: Skill::UltraViolence,
+            skill: Some(Skill::UltraViolence),
             default: true,
         };
 

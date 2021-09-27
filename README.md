@@ -28,9 +28,10 @@ There will be a Bash script available for installation on Linux.
 
 After you've installed TDL, you only need to take a few steps to get started playing:
 
+* Set the `EDITOR` environment variable to your favourite editor, e.g. `export EDITOR=nvim`.
 * Download a source port like PrBoom UMAPINFO (NOTE: this will be replaced by using TDL to install one)
-* Run `tdl source-port add prboomumapinfo ~/doom/source-ports/prboom-2.6um/prboom-plus 2.6um` to add the source port to TDL (NOTE: this will be removed with the install command)
-* Run `tdl profile add` specifying the values you want (NOTE: this will be replaced with an interactive mode that lets the user do it with their chosen text editor)
+* Run `tdl source-port add PrBoomUmapInfo ~/doom/source-ports/prboom-2.6um/prboom-plus 2.6um` to add the source port to TDL (NOTE: this will be removed with the install command)
+* Run `tdl profile add`. This will use your editor to specify the values for the profile. Alternativey, if you want you can add the profile by specifying all the arguments on the command line. Run `profile add --help` for more info.
 * Run `tdl iwad import --path ~/doom/iwads/DOOM2.WAD` (NOTE: this will be replaced with `tdl iwad import .` to import all the IWADs in a directory)
 * Run `tdl play` and use the fuzzy finder to select the MAP to play
 
