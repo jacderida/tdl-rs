@@ -3,6 +3,7 @@ use crate::source_port::{Skill, SourcePortType};
 use crate::storage::AppSettingsRepository;
 use color_eyre::{eyre::eyre, eyre::WrapErr, Help, Report, Result};
 use log::{debug, info};
+use prettytable::{cell, row, Table};
 use serde_hjson::{Map, Value};
 use std::io::Write;
 use structopt::StructOpt;
@@ -10,6 +11,9 @@ use tempfile::NamedTempFile;
 
 #[derive(Debug, StructOpt)]
 pub enum ProfileCommand {
+    #[structopt(name = "ls")]
+    /// Lists all the available profiles that have been added
+    Ls,
     #[structopt(name = "add")]
     /// Add a profile. If the `--name` argument is not supplied, this command will run in
     /// interactive mode and launch the editor specified by the EDITOR variable.
@@ -48,6 +52,26 @@ pub fn run_profile_cmd(
     repository: AppSettingsRepository,
 ) -> Result<(), Report> {
     match cmd {
+        ProfileCommand::Ls => {
+            let settings = repository.get()?;
+            if settings.profiles.is_empty() {
+                info!("No profiles have been added yet.");
+                info!("Run the `profile add` command to create a new profile.");
+            } else {
+                info!("Listing {} profiles", settings.profiles.len());
+                let mut table = Table::new();
+                table.add_row(row!["Name", "Source Port", "Version", "Is Default?"]);
+                for profile in settings.profiles {
+                    table.add_row(row![
+                        profile.name,
+                        profile.source_port_type,
+                        profile.source_port_version,
+                        profile.default
+                    ]);
+                }
+                table.printstd();
+            }
+        }
         ProfileCommand::Add {
             name,
             source_port_type,
@@ -72,8 +96,8 @@ pub fn run_profile_cmd(
                 Profile::new(
                     &name,
                     source_port_type,
-                    source_port_version.to_owned(),
-                    skill.to_owned(),
+                    source_port_version,
+                    skill,
                     fullscreen,
                     music,
                     is_default,

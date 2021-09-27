@@ -42,3 +42,6 @@ skim = "~0.9.4"
 assert_fs = "~1.0"
 assert_cmd = "~2.0"
 predicates = "~2.0"
+
+[dev-dependencies.test_helpers]
+path = "./test_helpers"
