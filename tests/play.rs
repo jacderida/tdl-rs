@@ -2,11 +2,7 @@ use assert_cmd::Command;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
 use std::path::PathBuf;
-
-#[cfg(target_family = "unix")]
-const FAKE_SOURCE_PORT_BIN_NAME: &str = "fake_source_port";
-#[cfg(target_family = "windows")]
-const FAKE_SOURCE_PORT_BIN_NAME: &str = "fake_source_port.exe";
+use test_helpers::helpers::get_fake_source_port_path;
 
 #[test]
 fn play_should_run_the_game_with_the_default_profile() {
@@ -451,12 +447,4 @@ fn play_should_run_the_game_with_the_selected_iwad_and_doom_map() {
         )))
         .stdout(predicate::str::contains("Game called with -warp: 1 7"))
         .stdout(predicate::str::contains("Game called with -skill: 4"));
-}
-
-fn get_fake_source_port_path() -> String {
-    let mut fake_source_port_path = std::env::current_dir().unwrap();
-    fake_source_port_path.push("target");
-    fake_source_port_path.push("debug");
-    fake_source_port_path.push(FAKE_SOURCE_PORT_BIN_NAME);
-    String::from(fake_source_port_path.as_path().to_str().unwrap())
 }

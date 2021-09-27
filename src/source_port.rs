@@ -56,6 +56,20 @@ impl FromStr for SourcePortType {
     }
 }
 
+impl std::fmt::Display for SourcePortType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DoomRetro => write!(f, "DoomRetro"),
+            Self::Dsda => write!(f, "Dsda"),
+            Self::GzDoom => write!(f, "GzDoom"),
+            Self::Odamex => write!(f, "Odamex"),
+            Self::PrBoom => write!(f, "PrBoom"),
+            Self::PrBoomUmapInfo => write!(f, "PrBoomUmapInfo"),
+            Self::Woof => write!(f, "Woof"),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SourcePort {
     pub source_port_type: SourcePortType,
