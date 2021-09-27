@@ -1,0 +1,27 @@
+{
+    // The name for this profile. It must be unique.
+    // Run `tdl profile ls` to see names that are already taken.
+    name: default
+    // The type of the source port to add.
+    // Note: the source port should have already been added using the `tdl source-port add` command.
+    // Valid values: DoomRetro, Dsda, GzDoom, Odamex, PrBoom, PrBoomUmapInfo, Woof
+    type: PrBoomUmapInfo
+    // This refers to a version of the source port that's already been added with the `tdl source-port add`
+    // command. You can see the available source ports by running `tdl source-port ls`.
+    version: 2.6um
+    // The skill to use.
+    // Valid values: TooYoungToDie, HeyNotTooRough, HurtMePlenty, UltraViolence, Nightmare.
+    skill: UltraViolence
+    // Controls whether the source port will launch in fullscreen mode.
+    // The value supplied must either be true or false.
+    fullscreen: true
+    // Controls whether the source port will launch with music on or off.
+    // The value supplied must either be true or false.
+    music: true
+    // Set this as the default profile. Only one profile can be the default, so if this is set to true,
+    // the default profile will be changed from the previous one to this one.
+    // The default profile is what will be used with the `tdl play` command if the `--profile` argument
+    // is not supplied.
+    // The value must be true or false.
+    default: true
+}

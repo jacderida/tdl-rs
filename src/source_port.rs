@@ -30,11 +30,13 @@ impl FromStr for Skill {
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SourcePortType {
-    PrBoom,
-    PrBoomUmapInfo,
+    DoomRetro,
     Dsda,
     GzDoom,
-    DoomRetro,
+    Odamex,
+    PrBoom,
+    PrBoomUmapInfo,
+    Woof,
 }
 
 impl FromStr for SourcePortType {
@@ -42,12 +44,14 @@ impl FromStr for SourcePortType {
 
     fn from_str(input: &str) -> Result<SourcePortType, Self::Err> {
         match input {
-            "prboom" => Ok(SourcePortType::PrBoom),
-            "prboomumapinfo" => Ok(SourcePortType::PrBoomUmapInfo),
-            "dsda" => Ok(SourcePortType::Dsda),
-            "gzdoom" => Ok(SourcePortType::GzDoom),
-            "doomretro" => Ok(SourcePortType::DoomRetro),
-            _ => Err(format!("{} is not a supported Source Port", input)),
+            "DoomRetro" => Ok(SourcePortType::DoomRetro),
+            "Dsda" => Ok(SourcePortType::Dsda),
+            "GzDoom" => Ok(SourcePortType::GzDoom),
+            "Odamex" => Ok(SourcePortType::Odamex),
+            "PrBoom" => Ok(SourcePortType::PrBoom),
+            "PrBoomUmapInfo" => Ok(SourcePortType::PrBoomUmapInfo),
+            "Woof" => Ok(SourcePortType::Woof),
+            _ => Err(format!("{} is not a supported source port", input)),
         }
     }
 }
