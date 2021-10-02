@@ -1,4 +1,4 @@
-use crate::source_port::{SourcePort, SourcePortType};
+use crate::source_port::{InstalledSourcePort, SourcePortType};
 use crate::storage::AppSettingsRepository;
 use color_eyre::{eyre::eyre, Help, Report, Result};
 use log::{debug, info};
@@ -37,7 +37,7 @@ pub fn run_source_port_cmd(
                 path.display(),
                 &version
             );
-            let source_port = SourcePort::new(source_port_type, path, &version)?;
+            let source_port = InstalledSourcePort::new(source_port_type, path, &version)?;
             let mut settings = repository.get()?;
             if settings
                 .source_ports
@@ -63,7 +63,7 @@ mod tests {
     use super::run_source_port_cmd;
     use super::SourcePortCommand;
     use crate::settings::AppSettings;
-    use crate::source_port::SourcePort;
+    use crate::source_port::InstalledSourcePort;
     use crate::source_port::SourcePortType;
     use crate::storage::AppSettingsRepository;
     use assert_fs::prelude::*;
@@ -77,7 +77,7 @@ mod tests {
         sp_exe.write_binary(b"fake source port code").unwrap();
 
         let cmd = SourcePortCommand::Add {
-            source_port_type: SourcePortType::PrBoom,
+            source_port_type: SourcePortType::PrBoomPlus,
             path: sp_exe.path().to_path_buf(),
             version: "2.6".to_string(),
         };
@@ -87,7 +87,7 @@ mod tests {
         assert_eq!(settings.source_ports.len(), 1);
         matches!(
             settings.source_ports[0].source_port_type,
-            SourcePortType::PrBoom
+            SourcePortType::PrBoomPlus
         );
         assert_eq!(
             settings.source_ports[0].path.to_str(),
@@ -104,8 +104,8 @@ mod tests {
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = AppSettings {
-            source_ports: vec![SourcePort {
-                source_port_type: SourcePortType::PrBoom,
+            source_ports: vec![InstalledSourcePort {
+                source_port_type: SourcePortType::PrBoomPlus,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -144,8 +144,8 @@ mod tests {
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = AppSettings {
-            source_ports: vec![SourcePort {
-                source_port_type: SourcePortType::PrBoom,
+            source_ports: vec![InstalledSourcePort {
+                source_port_type: SourcePortType::PrBoomPlus,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -154,7 +154,7 @@ mod tests {
         repo.save(settings).unwrap();
 
         let cmd = SourcePortCommand::Add {
-            source_port_type: SourcePortType::PrBoom,
+            source_port_type: SourcePortType::PrBoomPlus,
             path: prboom_exe.path().to_path_buf(),
             version: "2.6".to_string(),
         };
@@ -163,7 +163,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "There is already a PrBoom Source Port at version 2.6".to_string()
+            "There is already a PrBoomPlus Source Port at version 2.6".to_string()
         )
     }
 
@@ -175,8 +175,8 @@ mod tests {
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = AppSettings {
-            source_ports: vec![SourcePort {
-                source_port_type: SourcePortType::PrBoom,
+            source_ports: vec![InstalledSourcePort {
+                source_port_type: SourcePortType::PrBoomPlus,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -185,7 +185,7 @@ mod tests {
         repo.save(settings).unwrap();
 
         let cmd = SourcePortCommand::Add {
-            source_port_type: SourcePortType::PrBoom,
+            source_port_type: SourcePortType::PrBoomPlus,
             path: prboom_exe.path().to_path_buf(),
             version: "2.7".to_string(),
         };
@@ -195,7 +195,7 @@ mod tests {
         assert_eq!(settings.source_ports.len(), 2);
         matches!(
             settings.source_ports[1].source_port_type,
-            SourcePortType::PrBoom
+            SourcePortType::PrBoomPlus
         );
         assert_eq!(
             settings.source_ports[1].path.to_str(),

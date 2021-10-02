@@ -194,7 +194,7 @@ mod tests {
     use super::ProfileCommand;
     use super::Skill;
     use crate::settings::AppSettings;
-    use crate::source_port::SourcePort;
+    use crate::source_port::InstalledSourcePort;
     use crate::source_port::SourcePortType;
     use crate::storage::AppSettingsRepository;
     use assert_fs::prelude::*;
@@ -207,8 +207,8 @@ mod tests {
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = AppSettings {
-            source_ports: vec![SourcePort {
-                source_port_type: SourcePortType::PrBoom,
+            source_ports: vec![InstalledSourcePort {
+                source_port_type: SourcePortType::PrBoomPlus,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -218,7 +218,7 @@ mod tests {
 
         let cmd = ProfileCommand::Add {
             name: Some("default".to_string()),
-            source_port_type: Some(SourcePortType::PrBoom),
+            source_port_type: Some(SourcePortType::PrBoomPlus),
             source_port_version: Some("2.6".to_string()),
             fullscreen: true,
             music: true,
@@ -234,7 +234,7 @@ mod tests {
         assert_eq!(settings.profiles[0].name, "default");
         matches!(
             settings.profiles[0].source_port_type,
-            SourcePortType::PrBoom
+            SourcePortType::PrBoomPlus
         );
         assert_eq!(settings.profiles[0].source_port_version, "2.6");
         assert!(settings.profiles[0].fullscreen);
@@ -251,8 +251,8 @@ mod tests {
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = AppSettings {
-            source_ports: vec![SourcePort {
-                source_port_type: SourcePortType::PrBoom,
+            source_ports: vec![InstalledSourcePort {
+                source_port_type: SourcePortType::PrBoomPlus,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -262,7 +262,7 @@ mod tests {
 
         let cmd = ProfileCommand::Add {
             name: Some("default".to_string()),
-            source_port_type: Some(SourcePortType::PrBoom),
+            source_port_type: Some(SourcePortType::PrBoomPlus),
             source_port_version: Some("2.6".to_string()),
             fullscreen: true,
             music: true,
@@ -278,7 +278,7 @@ mod tests {
         assert_eq!(settings.profiles[0].name, "default");
         matches!(
             settings.profiles[0].source_port_type,
-            SourcePortType::PrBoom
+            SourcePortType::PrBoomPlus
         );
         assert_eq!(settings.profiles[0].source_port_version, "2.6");
         assert!(settings.profiles[0].fullscreen);
@@ -295,14 +295,14 @@ mod tests {
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = AppSettings {
-            source_ports: vec![SourcePort {
-                source_port_type: SourcePortType::PrBoom,
+            source_ports: vec![InstalledSourcePort {
+                source_port_type: SourcePortType::PrBoomPlus,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
             profiles: vec![Profile {
                 name: "default".to_string(),
-                source_port_type: SourcePortType::PrBoom,
+                source_port_type: SourcePortType::PrBoomPlus,
                 source_port_version: "2.6".to_string(),
                 skill: Skill::UltraViolence,
                 fullscreen: true,
@@ -314,7 +314,7 @@ mod tests {
 
         let cmd = ProfileCommand::Add {
             name: Some("prboom-nomusic".to_string()),
-            source_port_type: Some(SourcePortType::PrBoom),
+            source_port_type: Some(SourcePortType::PrBoomPlus),
             source_port_version: Some("2.6".to_string()),
             fullscreen: true,
             music: false,
@@ -330,7 +330,7 @@ mod tests {
         assert_eq!(settings.profiles[1].name, "prboom-nomusic");
         matches!(
             settings.profiles[1].source_port_type,
-            SourcePortType::PrBoom
+            SourcePortType::PrBoomPlus
         );
         assert_eq!(settings.profiles[1].source_port_version, "2.6");
         assert!(settings.profiles[1].fullscreen);
@@ -346,14 +346,14 @@ mod tests {
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = AppSettings {
-            source_ports: vec![SourcePort {
-                source_port_type: SourcePortType::PrBoom,
+            source_ports: vec![InstalledSourcePort {
+                source_port_type: SourcePortType::PrBoomPlus,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
             profiles: vec![Profile {
                 name: "default".to_string(),
-                source_port_type: SourcePortType::PrBoom,
+                source_port_type: SourcePortType::PrBoomPlus,
                 source_port_version: "2.6".to_string(),
                 skill: Skill::UltraViolence,
                 fullscreen: true,
@@ -365,7 +365,7 @@ mod tests {
 
         let cmd = ProfileCommand::Add {
             name: Some("prboom-nomusic".to_string()),
-            source_port_type: Some(SourcePortType::PrBoom),
+            source_port_type: Some(SourcePortType::PrBoomPlus),
             source_port_version: Some("2.6".to_string()),
             fullscreen: true,
             music: false,
@@ -382,7 +382,7 @@ mod tests {
         assert_eq!(settings.profiles[1].name, "prboom-nomusic");
         matches!(
             settings.profiles[1].source_port_type,
-            SourcePortType::PrBoom
+            SourcePortType::PrBoomPlus
         );
         assert_eq!(settings.profiles[1].source_port_version, "2.6");
         assert!(settings.profiles[1].fullscreen);
@@ -399,8 +399,8 @@ mod tests {
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
         let settings = AppSettings {
-            source_ports: vec![SourcePort {
-                source_port_type: SourcePortType::PrBoom,
+            source_ports: vec![InstalledSourcePort {
+                source_port_type: SourcePortType::PrBoomPlus,
                 path: prboom_exe.path().to_path_buf(),
                 version: "2.6".to_string(),
             }],
@@ -410,7 +410,7 @@ mod tests {
 
         let cmd = ProfileCommand::Add {
             name: Some("default".to_string()),
-            source_port_type: Some(SourcePortType::PrBoom),
+            source_port_type: Some(SourcePortType::PrBoomPlus),
             source_port_version: Some("2.7".to_string()),
             fullscreen: true,
             music: true,
@@ -423,7 +423,7 @@ mod tests {
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().to_string(),
-            "The Source Port 'PrBoom' with version '2.7' does not exist".to_string()
+            "The Source Port 'PrBoomPlus' with version '2.7' does not exist".to_string()
         )
     }
 }

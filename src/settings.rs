@@ -1,5 +1,5 @@
 use crate::profile::Profile;
-use crate::source_port::SourcePort;
+use crate::source_port::InstalledSourcePort;
 #[cfg(target_family = "windows")]
 use color_eyre::eyre::eyre;
 use color_eyre::{eyre::ensure, Report, Result};
@@ -39,7 +39,7 @@ impl UserSettings {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct AppSettings {
-    pub source_ports: Vec<SourcePort>,
+    pub source_ports: Vec<InstalledSourcePort>,
     pub profiles: Vec<Profile>,
 }
 
