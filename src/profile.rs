@@ -51,7 +51,7 @@ mod tests {
     fn constructor_should_set_fields_correctly() {
         let profile = Profile::new(
             "default",
-            SourcePortType::PrBoom,
+            SourcePortType::PrBoomPlus,
             "2.6um".to_string(),
             Skill::UltraViolence,
             true,
@@ -60,7 +60,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(profile.name, "default");
-        matches!(profile.source_port_type, SourcePortType::PrBoom);
+        matches!(profile.source_port_type, SourcePortType::PrBoomPlus);
         assert_eq!(profile.source_port_version, "2.6um".to_string());
         matches!(profile.skill, Skill::UltraViolence);
         assert!(profile.fullscreen);
@@ -72,7 +72,7 @@ mod tests {
     fn constructor_should_return_error_for_name_not_set() {
         let result = Profile::new(
             "",
-            SourcePortType::PrBoom,
+            SourcePortType::PrBoomPlus,
             "2.6um".to_string(),
             Skill::UltraViolence,
             true,
@@ -90,7 +90,7 @@ mod tests {
     fn constructor_should_return_error_for_source_port_version_not_set() {
         let result = Profile::new(
             "default",
-            SourcePortType::PrBoom,
+            SourcePortType::PrBoomPlus,
             "".to_string(),
             Skill::UltraViolence,
             true,

@@ -2,8 +2,8 @@ use crate::profile::Profile;
 use crate::settings::get_app_settings_dir_path;
 use crate::settings::get_user_settings;
 use crate::settings::AppSettings;
+use crate::source_port::InstalledSourcePort;
 use crate::source_port::Skill;
-use crate::source_port::SourcePort;
 use crate::storage::AppSettingsRepository;
 use crate::storage::ObjectRepository;
 use crate::wad::WadEntry;
@@ -58,7 +58,7 @@ fn get_profile(settings: &AppSettings, profile: Option<String>) -> Result<&Profi
 fn get_source_port<'a>(
     settings: &'a AppSettings,
     profile: &'a Profile,
-) -> Result<&'a SourcePort, Report> {
+) -> Result<&'a InstalledSourcePort, Report> {
     let source_port = settings
         .source_ports
         .iter()

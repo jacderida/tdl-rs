@@ -11,7 +11,7 @@ fn profile_ls_with_2_profiles_should_list_the_added_profiles() {
     let mut cmd = Command::cargo_bin("tdl").unwrap();
     cmd.arg("source-port")
         .arg("add")
-        .arg("PrBoom")
+        .arg("PrBoomPlus")
         .arg(&fake_source_port_path)
         .arg("2.6")
         .env("TDL_SETTINGS_PATH", settings_file.path().to_str().unwrap())
@@ -22,7 +22,7 @@ fn profile_ls_with_2_profiles_should_list_the_added_profiles() {
     let mut cmd = Command::cargo_bin("tdl").unwrap();
     cmd.arg("source-port")
         .arg("add")
-        .arg("PrBoomUmapInfo")
+        .arg("PrBoomPlus")
         .arg(&fake_source_port_path)
         .arg("2.6um")
         .env("TDL_SETTINGS_PATH", settings_file.path().to_str().unwrap())
@@ -36,7 +36,7 @@ fn profile_ls_with_2_profiles_should_list_the_added_profiles() {
         .arg("--name")
         .arg("default")
         .arg("--type")
-        .arg("PrBoom")
+        .arg("PrBoomPlus")
         .arg("--version")
         .arg("2.6")
         .arg("--skill")
@@ -54,7 +54,7 @@ fn profile_ls_with_2_profiles_should_list_the_added_profiles() {
         .arg("--name")
         .arg("profile2")
         .arg("--type")
-        .arg("PrBoomUmapInfo")
+        .arg("PrBoomPlus")
         .arg("--version")
         .arg("2.6um")
         .arg("--skill")
@@ -79,10 +79,10 @@ fn profile_ls_with_2_profiles_should_list_the_added_profiles() {
         .stdout(predicate::str::contains("Version"))
         .stdout(predicate::str::contains("Is Default?"))
         .stdout(predicate::str::contains("default"))
-        .stdout(predicate::str::contains("PrBoom"))
+        .stdout(predicate::str::contains("PrBoom Plus"))
         .stdout(predicate::str::contains("2.6"))
         .stdout(predicate::str::contains("profile2"))
-        .stdout(predicate::str::contains("PrBoomUmapInfo"))
+        .stdout(predicate::str::contains("PrBoom Plus"))
         .stdout(predicate::str::contains("2.6um"));
 }
 
