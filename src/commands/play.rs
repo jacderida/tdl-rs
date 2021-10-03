@@ -62,11 +62,11 @@ fn get_source_port<'a>(
     let source_port = settings
         .source_ports
         .iter()
-        .find(|sp| sp.source_port_type == profile.source_port_type)
+        .find(|sp| sp.name == profile.source_port)
         .ok_or_else(|| {
             eyre!(
                 "Failed to find the {:?}-{} source port",
-                profile.source_port_type,
+                profile.source_port,
                 profile.source_port_version
             )
         })
