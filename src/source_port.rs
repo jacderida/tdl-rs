@@ -115,57 +115,68 @@ impl InstalledSourcePort {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::InstalledSourcePort;
-    use super::SourcePortType;
-    use assert_fs::prelude::*;
+mod installed_source_port {
+    mod new {
+        use super::super::InstalledSourcePort;
+        use super::super::SourcePortType;
+        use assert_fs::prelude::*;
 
-    #[test]
-    fn constructor_should_set_fields_correctly() {
-        let temp = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
-        temp.write_binary(b"fake source port code").unwrap();
-        let sp =
-            InstalledSourcePort::new(SourcePortType::PrBoomPlus, temp.path().to_path_buf(), "2.6")
-                .unwrap();
-        matches!(sp.source_port_type, SourcePortType::PrBoomPlus);
-        assert_eq!(sp.path.to_str().unwrap(), temp.path().to_str().unwrap());
-        assert_eq!(sp.version, "2.6");
-    }
+        #[test]
+        fn should_set_fields() {
+            let temp = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
+            temp.write_binary(b"fake source port code").unwrap();
+            let sp = InstalledSourcePort::new(
+                SourcePortType::PrBoomPlus,
+                temp.path().to_path_buf(),
+                "2.6",
+            )
+            .unwrap();
+            matches!(sp.source_port_type, SourcePortType::PrBoomPlus);
+            assert_eq!(sp.path.to_str().unwrap(), temp.path().to_str().unwrap());
+            assert_eq!(sp.version, "2.6");
+        }
 
-    #[test]
-    fn constructor_should_return_error_if_path_does_not_exist() {
-        let temp = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
-        let sp =
-            InstalledSourcePort::new(SourcePortType::PrBoomPlus, temp.path().to_path_buf(), "2.6");
-        assert!(sp.is_err());
-        assert_eq!(
-            sp.unwrap_err().to_string(),
-            "The source port must point to a valid exe file"
-        );
-    }
+        #[test]
+        fn should_return_error_if_path_does_not_exist() {
+            let temp = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
+            let sp = InstalledSourcePort::new(
+                SourcePortType::PrBoomPlus,
+                temp.path().to_path_buf(),
+                "2.6",
+            );
+            assert!(sp.is_err());
+            assert_eq!(
+                sp.unwrap_err().to_string(),
+                "The source port must point to a valid exe file"
+            );
+        }
 
-    #[test]
-    fn constructor_should_return_error_if_path_is_not_a_file() {
-        let temp = assert_fs::TempDir::new().unwrap();
-        let sp =
-            InstalledSourcePort::new(SourcePortType::PrBoomPlus, temp.path().to_path_buf(), "2.6");
-        assert!(sp.is_err());
-        assert_eq!(
-            sp.unwrap_err().to_string(),
-            "The source port must point to a valid exe file"
-        );
-    }
+        #[test]
+        fn should_return_error_if_path_is_not_a_file() {
+            let temp = assert_fs::TempDir::new().unwrap();
+            let sp = InstalledSourcePort::new(
+                SourcePortType::PrBoomPlus,
+                temp.path().to_path_buf(),
+                "2.6",
+            );
+            assert!(sp.is_err());
+            assert_eq!(
+                sp.unwrap_err().to_string(),
+                "The source port must point to a valid exe file"
+            );
+        }
 
-    #[test]
-    fn constructor_should_return_error_for_version_not_set() {
-        let temp = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
-        temp.write_binary(b"fake source port code").unwrap();
-        let sp =
-            InstalledSourcePort::new(SourcePortType::PrBoomPlus, temp.path().to_path_buf(), "");
-        assert!(sp.is_err());
-        assert_eq!(
-            sp.unwrap_err().to_string(),
-            "The version of the source port must be set"
-        );
+        #[test]
+        fn should_return_error_for_empty_version() {
+            let temp = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
+            temp.write_binary(b"fake source port code").unwrap();
+            let sp =
+                InstalledSourcePort::new(SourcePortType::PrBoomPlus, temp.path().to_path_buf(), "");
+            assert!(sp.is_err());
+            assert_eq!(
+                sp.unwrap_err().to_string(),
+                "The version of the source port must be set"
+            );
+        }
     }
 }
