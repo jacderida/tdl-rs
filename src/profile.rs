@@ -1,12 +1,12 @@
 use crate::source_port::Skill;
-use crate::source_port::SourcePortType;
+use crate::source_port::SourcePort;
 use color_eyre::{eyre::ensure, Report, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Profile {
     pub name: String,
-    pub source_port_type: SourcePortType,
+    pub source_port: SourcePort,
     pub source_port_version: String,
     pub skill: Skill,
     pub fullscreen: bool,
@@ -17,7 +17,7 @@ pub struct Profile {
 impl Profile {
     pub fn new(
         name: &str,
-        source_port_type: SourcePortType,
+        source_port: SourcePort,
         source_port_version: String,
         skill: Skill,
         fullscreen: bool,
@@ -31,7 +31,7 @@ impl Profile {
         );
         Ok(Profile {
             name: name.to_string(),
-            source_port_type,
+            source_port,
             source_port_version,
             skill,
             fullscreen,
@@ -45,13 +45,13 @@ impl Profile {
 mod new {
     use super::Profile;
     use super::Skill;
-    use crate::source_port::SourcePortType;
+    use crate::source_port::SourcePort;
 
     #[test]
     fn should_set_fields() {
         let profile = Profile::new(
             "default",
-            SourcePortType::PrBoomPlus,
+            SourcePort::PrBoomPlus,
             "2.6um".to_string(),
             Skill::UltraViolence,
             true,
@@ -60,7 +60,7 @@ mod new {
         )
         .unwrap();
         assert_eq!(profile.name, "default");
-        matches!(profile.source_port_type, SourcePortType::PrBoomPlus);
+        matches!(profile.source_port, SourcePort::PrBoomPlus);
         assert_eq!(profile.source_port_version, "2.6um".to_string());
         matches!(profile.skill, Skill::UltraViolence);
         assert!(profile.fullscreen);
@@ -72,7 +72,7 @@ mod new {
     fn should_return_error_for_empty_name() {
         let result = Profile::new(
             "",
-            SourcePortType::PrBoomPlus,
+            SourcePort::PrBoomPlus,
             "2.6um".to_string(),
             Skill::UltraViolence,
             true,
@@ -90,7 +90,7 @@ mod new {
     fn should_return_error_for_empty_version() {
         let result = Profile::new(
             "default",
-            SourcePortType::PrBoomPlus,
+            SourcePort::PrBoomPlus,
             "".to_string(),
             Skill::UltraViolence,
             true,

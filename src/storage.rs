@@ -331,7 +331,7 @@ mod app_settings_repository {
         use super::super::AppSettings;
         use super::super::AppSettingsRepository;
         use crate::source_port::InstalledSourcePort;
-        use crate::source_port::SourcePortType;
+        use crate::source_port::SourcePort;
         use assert_fs::prelude::*;
         use predicates::prelude::*;
 
@@ -342,7 +342,7 @@ mod app_settings_repository {
             let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
             let settings = AppSettings {
                 source_ports: vec![InstalledSourcePort::new(
-                    SourcePortType::PrBoomPlus,
+                    SourcePort::PrBoomPlus,
                     sp_exe.to_path_buf(),
                     "2.6",
                 )
@@ -365,7 +365,7 @@ mod app_settings_repository {
         use super::super::AppSettings;
         use super::super::AppSettingsRepository;
         use crate::source_port::InstalledSourcePort;
-        use crate::source_port::SourcePortType;
+        use crate::source_port::SourcePort;
         use assert_fs::prelude::*;
         use predicates::prelude::*;
 
@@ -376,7 +376,7 @@ mod app_settings_repository {
             let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
             let settings = AppSettings {
                 source_ports: vec![InstalledSourcePort::new(
-                    SourcePortType::PrBoomPlus,
+                    SourcePort::PrBoomPlus,
                     sp_exe.to_path_buf(),
                     "2.6",
                 )
@@ -390,7 +390,7 @@ mod app_settings_repository {
 
             settings_file.assert(predicate::path::exists());
             let sp = &retrieved_settings.source_ports[0];
-            matches!(sp.source_port_type, SourcePortType::PrBoomPlus);
+            matches!(sp.name, SourcePort::PrBoomPlus);
             assert_eq!(sp.path.to_str().unwrap(), sp_exe.path().to_str().unwrap());
             assert_eq!(sp.version, "2.6");
         }

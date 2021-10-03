@@ -29,7 +29,7 @@ impl FromStr for Skill {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub enum SourcePortType {
+pub enum SourcePort {
     Chocolate,
     Crispy,
     DoomRetro,
@@ -44,29 +44,29 @@ pub enum SourcePortType {
     Zandronum,
 }
 
-impl FromStr for SourcePortType {
+impl FromStr for SourcePort {
     type Err = String;
 
-    fn from_str(input: &str) -> Result<SourcePortType, Self::Err> {
+    fn from_str(input: &str) -> Result<SourcePort, Self::Err> {
         match input {
-            "Chocolate" => Ok(SourcePortType::Chocolate),
-            "Crispy" => Ok(SourcePortType::Crispy),
-            "DoomRetro" => Ok(SourcePortType::DoomRetro),
-            "Dsda" => Ok(SourcePortType::Dsda),
-            "EternityEngine" => Ok(SourcePortType::EternityEngine),
-            "GzDoom" => Ok(SourcePortType::GzDoom),
-            "LzDoom" => Ok(SourcePortType::LzDoom),
-            "Odamex" => Ok(SourcePortType::Odamex),
-            "PrBoomPlus" => Ok(SourcePortType::PrBoomPlus),
-            "Rude" => Ok(SourcePortType::PrBoomPlus),
-            "Woof" => Ok(SourcePortType::Woof),
-            "Zandronum" => Ok(SourcePortType::Zandronum),
+            "Chocolate" => Ok(SourcePort::Chocolate),
+            "Crispy" => Ok(SourcePort::Crispy),
+            "DoomRetro" => Ok(SourcePort::DoomRetro),
+            "Dsda" => Ok(SourcePort::Dsda),
+            "EternityEngine" => Ok(SourcePort::EternityEngine),
+            "GzDoom" => Ok(SourcePort::GzDoom),
+            "LzDoom" => Ok(SourcePort::LzDoom),
+            "Odamex" => Ok(SourcePort::Odamex),
+            "PrBoomPlus" => Ok(SourcePort::PrBoomPlus),
+            "Rude" => Ok(SourcePort::PrBoomPlus),
+            "Woof" => Ok(SourcePort::Woof),
+            "Zandronum" => Ok(SourcePort::Zandronum),
             _ => Err(format!("{} is not a supported source port", input)),
         }
     }
 }
 
-impl std::fmt::Display for SourcePortType {
+impl std::fmt::Display for SourcePort {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Chocolate => write!(f, "Chocolate Doom"),
@@ -87,14 +87,14 @@ impl std::fmt::Display for SourcePortType {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InstalledSourcePort {
-    pub source_port_type: SourcePortType,
+    pub name: SourcePort,
     pub path: PathBuf,
     pub version: String,
 }
 
 impl InstalledSourcePort {
     pub fn new(
-        source_port_type: SourcePortType,
+        name: SourcePort,
         path: PathBuf,
         version: &str,
     ) -> Result<InstalledSourcePort, Report> {
@@ -107,7 +107,7 @@ impl InstalledSourcePort {
             "The version of the source port must be set"
         );
         Ok(InstalledSourcePort {
-            source_port_type,
+            name,
             path,
             version: version.to_string(),
         })
@@ -118,20 +118,17 @@ impl InstalledSourcePort {
 mod installed_source_port {
     mod new {
         use super::super::InstalledSourcePort;
-        use super::super::SourcePortType;
+        use super::super::SourcePort;
         use assert_fs::prelude::*;
 
         #[test]
         fn should_set_fields() {
             let temp = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
             temp.write_binary(b"fake source port code").unwrap();
-            let sp = InstalledSourcePort::new(
-                SourcePortType::PrBoomPlus,
-                temp.path().to_path_buf(),
-                "2.6",
-            )
-            .unwrap();
-            matches!(sp.source_port_type, SourcePortType::PrBoomPlus);
+            let sp =
+                InstalledSourcePort::new(SourcePort::PrBoomPlus, temp.path().to_path_buf(), "2.6")
+                    .unwrap();
+            matches!(sp.name, SourcePort::PrBoomPlus);
             assert_eq!(sp.path.to_str().unwrap(), temp.path().to_str().unwrap());
             assert_eq!(sp.version, "2.6");
         }
@@ -139,11 +136,8 @@ mod installed_source_port {
         #[test]
         fn should_return_error_if_path_does_not_exist() {
             let temp = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
-            let sp = InstalledSourcePort::new(
-                SourcePortType::PrBoomPlus,
-                temp.path().to_path_buf(),
-                "2.6",
-            );
+            let sp =
+                InstalledSourcePort::new(SourcePort::PrBoomPlus, temp.path().to_path_buf(), "2.6");
             assert!(sp.is_err());
             assert_eq!(
                 sp.unwrap_err().to_string(),
@@ -154,11 +148,8 @@ mod installed_source_port {
         #[test]
         fn should_return_error_if_path_is_not_a_file() {
             let temp = assert_fs::TempDir::new().unwrap();
-            let sp = InstalledSourcePort::new(
-                SourcePortType::PrBoomPlus,
-                temp.path().to_path_buf(),
-                "2.6",
-            );
+            let sp =
+                InstalledSourcePort::new(SourcePort::PrBoomPlus, temp.path().to_path_buf(), "2.6");
             assert!(sp.is_err());
             assert_eq!(
                 sp.unwrap_err().to_string(),
@@ -171,7 +162,7 @@ mod installed_source_port {
             let temp = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
             temp.write_binary(b"fake source port code").unwrap();
             let sp =
-                InstalledSourcePort::new(SourcePortType::PrBoomPlus, temp.path().to_path_buf(), "");
+                InstalledSourcePort::new(SourcePort::PrBoomPlus, temp.path().to_path_buf(), "");
             assert!(sp.is_err());
             assert_eq!(
                 sp.unwrap_err().to_string(),

@@ -2,10 +2,12 @@
     // The name for this profile. It must be unique.
     // Run `tdl profile ls` to see names that are already taken.
     name: default
-    // The type of the source port to add.
-    // Note: the source port should have already been added using the `tdl source-port add` command.
-    // Valid values: DoomRetro, Dsda, GzDoom, Odamex, PrBoom, PrBoomUmapInfo, Woof
-    type: PrBoomUmapInfo
+    // The name of the source port to use in this profile.
+    // Note: the source port should have already been installed/added using the `tdl source-port
+    // add/install` command.
+    // Valid values: Chocolate, Crispy, DoomRetro, Dsda, EternityEngine, GzDoom, LzDoom, Odamex,
+    // PrBoomPlus, Rude, Woof, Zandronum.
+    source_port: PrBoomPlus
     // This refers to a version of the source port that's already been added with the `tdl source-port add`
     // command. You can see the available source ports by running `tdl source-port ls`.
     version: 2.6um
