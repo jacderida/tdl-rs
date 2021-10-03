@@ -197,231 +197,235 @@ impl WadEntry {
 
 #[cfg(test)]
 mod mapinfo {
-    use super::MapInfo;
+    mod new {
+        use super::super::MapInfo;
 
-    #[test]
-    fn constructor_should_permit_a_map_in_the_doom2_format() {
-        let map = MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap();
-        assert_eq!("MAP01", map.number);
-        assert_eq!("Entryway", map.name);
-        assert_eq!("1", map.warp);
+        #[test]
+        fn should_permit_a_map_in_the_doom2_format() {
+            let map = MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap();
+            assert_eq!("MAP01", map.number);
+            assert_eq!("Entryway", map.name);
+            assert_eq!("1", map.warp);
 
-        let map = MapInfo::new("MAP12".to_string(), "The Factory".to_string()).unwrap();
-        assert_eq!("MAP12", map.number);
-        assert_eq!("The Factory", map.name);
-        assert_eq!("12", map.warp);
-    }
+            let map = MapInfo::new("MAP12".to_string(), "The Factory".to_string()).unwrap();
+            assert_eq!("MAP12", map.number);
+            assert_eq!("The Factory", map.name);
+            assert_eq!("12", map.warp);
+        }
 
-    #[test]
-    fn constructor_should_permit_a_map_in_the_doom_format() {
-        let map = MapInfo::new("E1M1".to_string(), "Hanger".to_string()).unwrap();
-        assert_eq!("E1M1", map.number);
-        assert_eq!("Hanger", map.name);
-        assert_eq!("1 1", map.warp);
+        #[test]
+        fn should_permit_a_map_in_the_doom_format() {
+            let map = MapInfo::new("E1M1".to_string(), "Hanger".to_string()).unwrap();
+            assert_eq!("E1M1", map.number);
+            assert_eq!("Hanger", map.name);
+            assert_eq!("1 1", map.warp);
 
-        let map = MapInfo::new("E4M8".to_string(), "Hanger".to_string()).unwrap();
-        assert_eq!("E4M8", map.number);
-        assert_eq!("Hanger", map.name);
-        assert_eq!("4 8", map.warp);
-    }
+            let map = MapInfo::new("E4M8".to_string(), "Hanger".to_string()).unwrap();
+            assert_eq!("E4M8", map.number);
+            assert_eq!("Hanger", map.name);
+            assert_eq!("4 8", map.warp);
+        }
 
-    #[test]
-    fn constructor_should_ensure_the_map_number_is_set() {
-        let result = MapInfo::new("".to_string(), "Entryway".to_string());
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "A number must be provided for the map. It should be in the DOOM or DOOM2 format."
-        );
-    }
+        #[test]
+        fn should_ensure_the_map_number_is_set() {
+            let result = MapInfo::new("".to_string(), "Entryway".to_string());
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "A number must be provided for the map. It should be in the DOOM or DOOM2 format."
+            );
+        }
 
-    #[test]
-    fn constructor_should_ensure_the_map_name_is_set() {
-        let result = MapInfo::new("MAP01".to_string(), "".to_string());
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "A name must be provided for the map."
-        );
-    }
+        #[test]
+        fn should_ensure_the_map_name_is_set() {
+            let result = MapInfo::new("MAP01".to_string(), "".to_string());
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "A name must be provided for the map."
+            );
+        }
 
-    #[test]
-    fn constructor_should_reject_map_number_in_wrong_format() {
-        let result = MapInfo::new("MAP1".to_string(), "Entryway".to_string());
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
-        );
+        #[test]
+        fn should_reject_map_number_in_wrong_format() {
+            let result = MapInfo::new("MAP1".to_string(), "Entryway".to_string());
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
+            );
 
-        let result = MapInfo::new("map01".to_string(), "Entryway".to_string());
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
-        );
+            let result = MapInfo::new("map01".to_string(), "Entryway".to_string());
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
+            );
 
-        let result = MapInfo::new("MA01".to_string(), "Entryway".to_string());
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
-        );
+            let result = MapInfo::new("MA01".to_string(), "Entryway".to_string());
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
+            );
 
-        let result = MapInfo::new("e1m1".to_string(), "Hanger".to_string());
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
-        );
+            let result = MapInfo::new("e1m1".to_string(), "Hanger".to_string());
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
+            );
 
-        // DOOM.WAD contains lumps named `D_ExMx`, which are music data for the maps. The original
-        // regex matched on these lumps.
-        let result = MapInfo::new("D_E1M1".to_string(), "Hanger".to_string());
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
-        );
+            // DOOM.WAD contains lumps named `D_ExMx`, which are music data for the maps. The original
+            // regex matched on these lumps.
+            let result = MapInfo::new("D_E1M1".to_string(), "Hanger".to_string());
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "The map number must be in the DOOM or DOOM2 format. Valid values are ExMx or MAPxx."
+            );
+        }
     }
 }
 
 #[cfg(test)]
 mod wadentry {
-    use super::MapInfo;
-    use super::WadEntry;
+    mod new {
+        use super::super::MapInfo;
+        use super::super::WadEntry;
 
-    #[test]
-    fn constructor_should_set_fields_correctly() {
-        let maps = vec![
-            MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
-            MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
-            MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
-        ];
-        let entry = WadEntry::new(
-            "DOOM2".to_string(),
-            "DOOM2.WAD".to_string(),
-            "Doom II: Hell on Earth".to_string(),
-            "1994-09-30".to_string(),
-            "id Software".to_string(),
-            maps,
-        )
-        .unwrap();
-        assert_eq!(entry.id, "DOOM2");
-        assert_eq!(entry.name, "DOOM2.WAD");
-        assert_eq!(entry.title, "Doom II: Hell on Earth");
-        assert_eq!(entry.release_date, "1994-09-30");
-        assert_eq!(entry.author, "id Software");
-        assert_eq!(entry.maps.len(), 3);
-    }
+        #[test]
+        fn should_set_fields_correctly() {
+            let maps = vec![
+                MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
+                MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
+                MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
+            ];
+            let entry = WadEntry::new(
+                "DOOM2".to_string(),
+                "DOOM2.WAD".to_string(),
+                "Doom II: Hell on Earth".to_string(),
+                "1994-09-30".to_string(),
+                "id Software".to_string(),
+                maps,
+            )
+            .unwrap();
+            assert_eq!(entry.id, "DOOM2");
+            assert_eq!(entry.name, "DOOM2.WAD");
+            assert_eq!(entry.title, "Doom II: Hell on Earth");
+            assert_eq!(entry.release_date, "1994-09-30");
+            assert_eq!(entry.author, "id Software");
+            assert_eq!(entry.maps.len(), 3);
+        }
 
-    #[test]
-    fn constructor_should_ensure_the_id_is_set() {
-        let maps = vec![
-            MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
-            MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
-            MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
-        ];
-        let result = WadEntry::new(
-            "".to_string(),
-            "DOOM2.WAD".to_string(),
-            "Doom II: Hell on Earth".to_string(),
-            "1994-09-30".to_string(),
-            "id Software".to_string(),
-            maps,
-        );
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "The ID for the WAD entry must be set."
-        );
-    }
+        #[test]
+        fn should_ensure_the_id_is_set() {
+            let maps = vec![
+                MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
+                MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
+                MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
+            ];
+            let result = WadEntry::new(
+                "".to_string(),
+                "DOOM2.WAD".to_string(),
+                "Doom II: Hell on Earth".to_string(),
+                "1994-09-30".to_string(),
+                "id Software".to_string(),
+                maps,
+            );
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "The ID for the WAD entry must be set."
+            );
+        }
 
-    #[test]
-    fn constructor_should_ensure_the_name_is_set() {
-        let maps = vec![
-            MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
-            MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
-            MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
-        ];
-        let result = WadEntry::new(
-            "DOOM2".to_string(),
-            "".to_string(),
-            "Doom II: Hell on Earth".to_string(),
-            "1994-09-30".to_string(),
-            "id Software".to_string(),
-            maps,
-        );
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "The name for the WAD entry must be set."
-        );
-    }
+        #[test]
+        fn should_ensure_the_name_is_set() {
+            let maps = vec![
+                MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
+                MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
+                MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
+            ];
+            let result = WadEntry::new(
+                "DOOM2".to_string(),
+                "".to_string(),
+                "Doom II: Hell on Earth".to_string(),
+                "1994-09-30".to_string(),
+                "id Software".to_string(),
+                maps,
+            );
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "The name for the WAD entry must be set."
+            );
+        }
 
-    #[test]
-    fn constructor_should_ensure_the_title_is_set() {
-        let maps = vec![
-            MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
-            MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
-            MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
-        ];
-        let result = WadEntry::new(
-            "DOOM2".to_string(),
-            "DOOM2.WAD".to_string(),
-            "".to_string(),
-            "1994-09-30".to_string(),
-            "id Software".to_string(),
-            maps,
-        );
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "The title for the WAD entry must be set."
-        );
-    }
+        #[test]
+        fn should_ensure_the_title_is_set() {
+            let maps = vec![
+                MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
+                MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
+                MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
+            ];
+            let result = WadEntry::new(
+                "DOOM2".to_string(),
+                "DOOM2.WAD".to_string(),
+                "".to_string(),
+                "1994-09-30".to_string(),
+                "id Software".to_string(),
+                maps,
+            );
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "The title for the WAD entry must be set."
+            );
+        }
 
-    #[test]
-    fn constructor_should_ensure_the_release_date_is_set() {
-        let maps = vec![
-            MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
-            MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
-            MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
-        ];
-        let result = WadEntry::new(
-            "DOOM2".to_string(),
-            "DOOM2.WAD".to_string(),
-            "Doom II: Hell on Earth".to_string(),
-            "".to_string(),
-            "id Software".to_string(),
-            maps,
-        );
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "The release date for the WAD entry must be set."
-        );
-    }
+        #[test]
+        fn should_ensure_the_release_date_is_set() {
+            let maps = vec![
+                MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
+                MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
+                MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
+            ];
+            let result = WadEntry::new(
+                "DOOM2".to_string(),
+                "DOOM2.WAD".to_string(),
+                "Doom II: Hell on Earth".to_string(),
+                "".to_string(),
+                "id Software".to_string(),
+                maps,
+            );
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "The release date for the WAD entry must be set."
+            );
+        }
 
-    #[test]
-    fn constructor_should_ensure_the_author_is_set() {
-        let maps = vec![
-            MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
-            MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
-            MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
-        ];
-        let result = WadEntry::new(
-            "DOOM2".to_string(),
-            "DOOM2.WAD".to_string(),
-            "Doom II: Hell on Earth".to_string(),
-            "1994-09-30".to_string(),
-            "".to_string(),
-            maps,
-        );
-        assert!(result.is_err());
-        assert_eq!(
-            result.unwrap_err().to_string(),
-            "The author for the WAD entry must be set."
-        );
+        #[test]
+        fn should_ensure_the_author_is_set() {
+            let maps = vec![
+                MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
+                MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
+                MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
+            ];
+            let result = WadEntry::new(
+                "DOOM2".to_string(),
+                "DOOM2.WAD".to_string(),
+                "Doom II: Hell on Earth".to_string(),
+                "1994-09-30".to_string(),
+                "".to_string(),
+                maps,
+            );
+            assert!(result.is_err());
+            assert_eq!(
+                result.unwrap_err().to_string(),
+                "The author for the WAD entry must be set."
+            );
+        }
     }
 }

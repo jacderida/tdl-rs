@@ -59,7 +59,7 @@ pub fn run_source_port_cmd(
 }
 
 #[cfg(test)]
-mod tests {
+mod add {
     use super::run_source_port_cmd;
     use super::SourcePortCommand;
     use crate::settings::AppSettings;
@@ -69,7 +69,7 @@ mod tests {
     use assert_fs::prelude::*;
 
     #[test]
-    fn add_source_port_cmd_should_save_the_first_source_port() {
+    fn should_save_the_first_source_port() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
@@ -97,7 +97,7 @@ mod tests {
     }
 
     #[test]
-    fn add_source_port_cmd_should_add_a_new_source_port() {
+    fn should_save_a_new_source_port() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
@@ -137,7 +137,7 @@ mod tests {
     }
 
     #[test]
-    fn add_source_port_cmd_should_not_allow_duplicate_type_version_combo() {
+    fn should_return_error_for_duplicate_type_and_version_combination() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
@@ -168,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn add_source_port_cmd_should_allow_duplicate_type_with_different_version() {
+    fn should_save_source_port_with_duplicate_source_port_but_different_version() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 

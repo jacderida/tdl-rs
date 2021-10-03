@@ -109,35 +109,37 @@ pub fn get_user_settings() -> Result<UserSettings, Report> {
 
 #[cfg(test)]
 mod user_settings {
-    use super::UserSettings;
-    use assert_fs::prelude::*;
-    use predicates::prelude::*;
-    use std::env::set_var;
+    mod set_from_doom_home {
+        use super::super::UserSettings;
+        use assert_fs::prelude::*;
+        use predicates::prelude::*;
+        use std::env::set_var;
 
-    #[test]
-    fn set_from_doom_home_should_set_fields_correctly() {
-        let doom_home = assert_fs::TempDir::new().unwrap();
-        let iwads_dir = doom_home.child("iwads");
-        let wads_dir = doom_home.child("wads");
-        let source_ports_dir = doom_home.child("source-ports");
-        set_var("TDL_DOOM_HOME_PATH", doom_home.path().to_str().unwrap());
-        let _ = UserSettings::set_from_doom_home().unwrap();
-        iwads_dir.assert(predicate::path::is_dir());
-        wads_dir.assert(predicate::path::is_dir());
-        source_ports_dir.assert(predicate::path::is_dir());
-    }
+        #[test]
+        fn should_set_fields() {
+            let doom_home = assert_fs::TempDir::new().unwrap();
+            let iwads_dir = doom_home.child("iwads");
+            let wads_dir = doom_home.child("wads");
+            let source_ports_dir = doom_home.child("source-ports");
+            set_var("TDL_DOOM_HOME_PATH", doom_home.path().to_str().unwrap());
+            let _ = UserSettings::set_from_doom_home().unwrap();
+            iwads_dir.assert(predicate::path::is_dir());
+            wads_dir.assert(predicate::path::is_dir());
+            source_ports_dir.assert(predicate::path::is_dir());
+        }
 
-    #[test]
-    fn set_from_doom_home_should_create_directories_if_they_do_not_exist() {
-        let doom_home = assert_fs::TempDir::new().unwrap();
-        let iwads_dir = doom_home.child("iwads");
-        let wads_dir = doom_home.child("wads");
-        let source_ports_dir = doom_home.child("source-ports");
-        set_var("TDL_DOOM_HOME_PATH", doom_home.path().to_str().unwrap());
-        let _ = UserSettings::set_from_doom_home().unwrap();
-        iwads_dir.assert(predicate::path::is_dir());
-        wads_dir.assert(predicate::path::is_dir());
-        source_ports_dir.assert(predicate::path::is_dir());
+        #[test]
+        fn should_create_directories() {
+            let doom_home = assert_fs::TempDir::new().unwrap();
+            let iwads_dir = doom_home.child("iwads");
+            let wads_dir = doom_home.child("wads");
+            let source_ports_dir = doom_home.child("source-ports");
+            set_var("TDL_DOOM_HOME_PATH", doom_home.path().to_str().unwrap());
+            let _ = UserSettings::set_from_doom_home().unwrap();
+            iwads_dir.assert(predicate::path::is_dir());
+            wads_dir.assert(predicate::path::is_dir());
+            source_ports_dir.assert(predicate::path::is_dir());
+        }
     }
 }
 
@@ -147,14 +149,14 @@ mod user_settings {
 /// This code can be tested using an integration test, or be one of the very few parts of the
 /// application that won't have code coverage.
 #[cfg(test)]
-mod get_app_settings_path {
+mod get_app_settings_dir_path {
     use super::get_app_settings_dir_path;
     use assert_fs::prelude::*;
     use predicates::prelude::*;
     use std::env::set_var;
 
     #[test]
-    fn get_app_settings_dir_path_returns_env_var_value() {
+    fn should_return_value_of_tdl_settings_path_env_var() {
         let app_settings_dir = assert_fs::TempDir::new().unwrap();
         set_var(
             "TDL_SETTINGS_PATH",
@@ -166,7 +168,7 @@ mod get_app_settings_path {
     }
 
     #[test]
-    fn get_app_settings_dir_path_creates_directory_if_it_does_not_exist() {
+    fn should_create_directory_specified_by_tdl_settings_path_env_var() {
         let app_settings_dir = assert_fs::TempDir::new().unwrap();
         let child = app_settings_dir.child("tdl");
         set_var("TDL_SETTINGS_PATH", child.path().to_str().unwrap());
@@ -176,8 +178,7 @@ mod get_app_settings_path {
     }
 
     #[test]
-    #[ignore = "This test sometimes randomly fails. Apparently, somtimes the temporary file is *not* actually a file. Cannot figure out why."]
-    fn get_app_settings_dir_path_ensures_value_is_not_a_file() {
+    fn should_return_error_if_tdl_settings_env_var_points_to_file() {
         let app_settings_dir = assert_fs::TempDir::new().unwrap();
         let child = app_settings_dir.child("tdl");
         child.write_str("existing file").unwrap();
@@ -200,7 +201,7 @@ mod get_user_settings {
     use std::env::set_var;
 
     #[test]
-    fn get_user_settings_should_set_paths_relative_to_doom_home_if_env_var_is_set() {
+    fn should_set_paths_relative_to_doom_home_if_env_var_is_set() {
         let doom_home_dir = assert_fs::TempDir::new().unwrap();
         let iwads_dir = doom_home_dir.child("iwads");
         let wads_dir = doom_home_dir.child("wads");

@@ -42,13 +42,13 @@ impl Profile {
 }
 
 #[cfg(test)]
-mod tests {
+mod new {
     use super::Profile;
     use super::Skill;
     use crate::source_port::SourcePortType;
 
     #[test]
-    fn constructor_should_set_fields_correctly() {
+    fn should_set_fields() {
         let profile = Profile::new(
             "default",
             SourcePortType::PrBoomPlus,
@@ -69,7 +69,7 @@ mod tests {
     }
 
     #[test]
-    fn constructor_should_return_error_for_name_not_set() {
+    fn should_return_error_for_empty_name() {
         let result = Profile::new(
             "",
             SourcePortType::PrBoomPlus,
@@ -87,7 +87,7 @@ mod tests {
     }
 
     #[test]
-    fn constructor_should_return_error_for_source_port_version_not_set() {
+    fn should_return_error_for_empty_version() {
         let result = Profile::new(
             "default",
             SourcePortType::PrBoomPlus,

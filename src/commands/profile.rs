@@ -188,7 +188,7 @@ fn get_profile_in_interactive_mode() -> Result<Profile, Report> {
 }
 
 #[cfg(test)]
-mod tests {
+mod add {
     use super::run_profile_cmd;
     use super::Profile;
     use super::ProfileCommand;
@@ -200,7 +200,7 @@ mod tests {
     use assert_fs::prelude::*;
 
     #[test]
-    fn add_profile_cmd_should_save_the_first_profile() {
+    fn should_save_the_first_profile() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
@@ -243,8 +243,11 @@ mod tests {
         matches!(settings.profiles[0].skill, Skill::UltraViolence);
     }
 
+    /// There must always be a profile marked as default. This case is to cover when the user tried
+    /// to set default to false when there were no previously existing profiles. We should override
+    /// this choice and set the profile to default anyway.
     #[test]
-    fn add_profile_cmd_should_save_the_first_profile_and_ensure_it_is_marked_default() {
+    fn should_ensure_there_is_always_a_default_profile() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
@@ -288,7 +291,7 @@ mod tests {
     }
 
     #[test]
-    fn add_profile_cmd_should_add_a_new_profile() {
+    fn should_save_a_new_profile() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
@@ -339,7 +342,7 @@ mod tests {
     }
 
     #[test]
-    fn add_profile_cmd_should_add_a_new_default_profile_and_override_the_current_default() {
+    fn should_save_a_new_profile_as_the_new_default() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
@@ -392,7 +395,7 @@ mod tests {
     }
 
     #[test]
-    fn add_profile_cmd_should_not_allow_invalid_source_port_reference() {
+    fn should_return_error_result_for_invalid_source_port_reference() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
         let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
 
