@@ -197,6 +197,7 @@ mod add {
     use crate::source_port::SourcePort;
     use crate::storage::AppSettingsRepository;
     use assert_fs::prelude::*;
+    use std::path::PathBuf;
 
     #[test]
     fn should_save_the_first_profile() {
@@ -212,6 +213,7 @@ mod add {
                 version: "2.6".to_string(),
             }],
             profiles: Vec::new(),
+            release_cache_path: PathBuf::new(),
         };
         repo.save(settings).unwrap();
 
@@ -256,6 +258,7 @@ mod add {
                 version: "2.6".to_string(),
             }],
             profiles: Vec::new(),
+            release_cache_path: PathBuf::new(),
         };
         repo.save(settings).unwrap();
 
@@ -305,6 +308,7 @@ mod add {
                 music: true,
                 default: true,
             }],
+            release_cache_path: PathBuf::new(),
         };
         repo.save(settings).unwrap();
 
@@ -353,6 +357,7 @@ mod add {
                 music: true,
                 default: true,
             }],
+            release_cache_path: PathBuf::new(),
         };
         repo.save(settings).unwrap();
 
@@ -395,6 +400,7 @@ mod add {
                 version: "2.6".to_string(),
             }],
             profiles: Vec::new(),
+            release_cache_path: PathBuf::new(),
         };
         repo.save(settings).unwrap();
 
