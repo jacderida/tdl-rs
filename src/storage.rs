@@ -84,6 +84,17 @@ impl ObjectRepository {
         std::fs::write(save_pb.as_path(), serialized)?;
         Ok(())
     }
+
+    /// Deletes a saved object.
+    ///
+    /// This exists for use with the Github release cache to remove stale cache entries.
+    pub fn delete(&self, id: &str) -> Result<(), Report> {
+        let object_path = Path::new(&self.object_path).join(format!("{}.json", id));
+        if object_path.exists() {
+            std::fs::remove_file(object_path)?;
+        }
+        Ok(())
+    }
 }
 
 pub struct AppSettingsRepository {
@@ -294,6 +305,55 @@ mod object_repository {
             assert_eq!(saved.release_date, entry.release_date);
             assert_eq!(saved.author, entry.author);
             assert_eq!(saved.maps.len(), entry.maps.len());
+        }
+    }
+
+    mod delete {
+        use super::super::ObjectRepository;
+        use crate::wad::MapInfo;
+        use crate::wad::WadEntry;
+        use assert_fs::prelude::*;
+
+        #[test]
+        fn should_delete_an_existing_wad_entry() {
+            let maps = vec![
+                MapInfo::new("MAP01".to_string(), "Entryway".to_string()).unwrap(),
+                MapInfo::new("MAP02".to_string(), "Underhalls".to_string()).unwrap(),
+                MapInfo::new("MAP03".to_string(), "The Gantlet".to_string()).unwrap(),
+            ];
+            let entry = WadEntry::new(
+                "DOOM2".to_string(),
+                "DOOM2.WAD".to_string(),
+                "Doom II: Hell on Earth".to_string(),
+                "1994-09-30".to_string(),
+                "id Software".to_string(),
+                maps,
+            )
+            .unwrap();
+
+            let tmp_dir = assert_fs::TempDir::new().unwrap();
+            let wad_dir = tmp_dir.child("wads");
+            wad_dir.create_dir_all().unwrap();
+            let doom2_wad_file = wad_dir.child("DOOM2.json");
+
+            let sut = ObjectRepository::new(&wad_dir).unwrap();
+            sut.save(&entry.id, &entry).unwrap();
+
+            let result = sut.delete(&entry.id);
+            assert!(result.is_ok());
+            doom2_wad_file.assert(predicates::path::missing());
+        }
+
+        #[test]
+        fn should_return_ok_result_for_non_existent_file() {
+            let tmp_dir = assert_fs::TempDir::new().unwrap();
+            let wad_dir = tmp_dir.child("wads");
+            wad_dir.create_dir_all().unwrap();
+
+            let sut = ObjectRepository::new(&wad_dir).unwrap();
+
+            let result = sut.delete("non-existent-id");
+            assert!(result.is_ok());
         }
     }
 }
