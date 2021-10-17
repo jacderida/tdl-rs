@@ -41,6 +41,7 @@ impl UserSettings {
 pub struct AppSettings {
     pub source_ports: Vec<InstalledSourcePort>,
     pub profiles: Vec<Profile>,
+    pub release_cache_path: PathBuf,
 }
 
 /// Gets the location of the app settings directory.

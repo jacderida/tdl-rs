@@ -104,10 +104,17 @@ pub struct AppSettingsRepository {
 impl AppSettingsRepository {
     pub fn new(settings_path: PathBuf) -> Result<AppSettingsRepository, Report> {
         if !settings_path.exists() {
-            std::fs::write(
-                settings_path.to_str().unwrap(),
-                r#"{"source_ports":[], "profiles": []}"#,
-            )?;
+            let mut release_cache_path = settings_path.clone();
+            release_cache_path.pop();
+            release_cache_path.push("release_cache");
+            std::fs::create_dir_all(&release_cache_path)?;
+            let settings = AppSettings {
+                source_ports: Vec::new(),
+                profiles: Vec::new(),
+                release_cache_path,
+            };
+            let serialized = serde_json::to_string(&settings)?;
+            std::fs::write(settings_path.to_str().unwrap(), serialized)?;
         }
         Ok(AppSettingsRepository { settings_path })
     }
@@ -362,6 +369,7 @@ mod object_repository {
 mod app_settings_repository {
     mod new {
         use super::super::AppSettingsRepository;
+        use crate::settings::AppSettings;
         use assert_fs::prelude::*;
         use predicates::prelude::*;
 
@@ -377,13 +385,35 @@ mod app_settings_repository {
         }
 
         #[test]
-        fn should_create_empty_json_object_if_settings_file_does_not_exist() {
-            let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
+        fn should_serialize_default_settings_if_settings_file_does_not_exist() {
+            let tmp_dir = assert_fs::TempDir::new().unwrap();
+            let settings_file = tmp_dir.child("tdl.json");
+
             let _ = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
-            settings_file.assert(predicate::path::exists());
+
             let settings_contents =
                 std::fs::read_to_string(settings_file.path().to_str().unwrap()).unwrap();
-            assert_eq!(settings_contents, r#"{"source_ports":[], "profiles": []}"#);
+            let app_settings: AppSettings = serde_json::from_str(&settings_contents).unwrap();
+            assert_eq!(app_settings.source_ports.len(), 0);
+            assert_eq!(app_settings.profiles.len(), 0);
+        }
+
+        #[test]
+        fn should_create_the_release_cache_directory_if_settings_file_does_not_exist() {
+            let tmp_dir = assert_fs::TempDir::new().unwrap();
+            let settings_file = tmp_dir.child("tdl.json");
+            let release_cache_dir = tmp_dir.child("release_cache");
+
+            let _ = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+
+            release_cache_dir.assert(predicate::path::is_dir());
+            let settings_contents =
+                std::fs::read_to_string(settings_file.path().to_str().unwrap()).unwrap();
+            let app_settings: AppSettings = serde_json::from_str(&settings_contents).unwrap();
+            assert_eq!(
+                app_settings.release_cache_path.to_str().unwrap(),
+                release_cache_dir.path().to_str().unwrap()
+            );
         }
     }
 
@@ -394,6 +424,7 @@ mod app_settings_repository {
         use crate::source_port::SourcePort;
         use assert_fs::prelude::*;
         use predicates::prelude::*;
+        use std::path::PathBuf;
 
         #[test]
         fn should_serialize_the_settings_file_to_json() {
@@ -408,6 +439,7 @@ mod app_settings_repository {
                 )
                 .unwrap()],
                 profiles: Vec::new(),
+                release_cache_path: PathBuf::new(),
             };
             let serialized_settings = serde_json::to_string(&settings).unwrap();
 
@@ -428,6 +460,7 @@ mod app_settings_repository {
         use crate::source_port::SourcePort;
         use assert_fs::prelude::*;
         use predicates::prelude::*;
+        use std::path::PathBuf;
 
         #[test]
         fn should_deserialize_the_settings_file_and_return_the_settings_registry() {
@@ -442,6 +475,7 @@ mod app_settings_repository {
                 )
                 .unwrap()],
                 profiles: Vec::new(),
+                release_cache_path: PathBuf::new(),
             };
             let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
             let _ = repo.save(settings);
