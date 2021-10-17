@@ -14,6 +14,7 @@ use crate::commands::wad::run_wad_cmd;
 use crate::commands::Command;
 use crate::find::select_map_to_play;
 use crate::settings::get_app_settings_dir_path;
+use crate::source_port::GithubReleaseRepository;
 use crate::storage::AppSettingsRepository;
 use color_eyre::{Report, Result};
 use env_logger::Env;
@@ -36,7 +37,9 @@ fn main() -> Result<(), Report> {
         .init();
     let mut app_settings_path = get_app_settings_dir_path()?;
     app_settings_path.push("app_settings.json");
-    let repository = AppSettingsRepository::new(app_settings_path)?;
+    let app_settings_repository = AppSettingsRepository::new(app_settings_path)?;
+    let github_release_repository = GithubReleaseRepository::new();
+
     let args = CmdArgs::from_args();
     let result = match args.cmd {
         Some(Command::Play {
@@ -45,7 +48,7 @@ fn main() -> Result<(), Report> {
             profile,
         }) => {
             if let Some(wad_to_play) = megawad {
-                run_play_cmd(wad_to_play, map, profile, repository)
+                run_play_cmd(wad_to_play, map, profile, app_settings_repository)
             } else {
                 let selected = select_map_to_play()?;
                 let wad_to_play = selected.0;
@@ -55,11 +58,13 @@ fn main() -> Result<(), Report> {
                     &wad_to_play,
                     map_to_play.as_ref().unwrap()
                 );
-                run_play_cmd(wad_to_play, map_to_play, profile, repository)
+                run_play_cmd(wad_to_play, map_to_play, profile, app_settings_repository)
             }
         }
-        Some(Command::Profile { cmd }) => run_profile_cmd(cmd, repository),
-        Some(Command::SourcePort { cmd }) => run_source_port_cmd(cmd, &repository),
+        Some(Command::Profile { cmd }) => run_profile_cmd(cmd, app_settings_repository),
+        Some(Command::SourcePort { cmd }) => {
+            run_source_port_cmd(cmd, &app_settings_repository, &github_release_repository)
+        }
         Some(Command::Wad { cmd }) => run_wad_cmd(cmd),
         Some(Command::Iwad { cmd }) => run_iwad_cmd(cmd),
         None => panic!("Eventually go into interactive mode"),

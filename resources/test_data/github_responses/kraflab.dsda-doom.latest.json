@@ -1,0 +1,41 @@
+{
+  "url": "https://api.github.com/repos/kraflab/dsda-doom/releases/48636378",
+  "assets_url": "https://api.github.com/repos/kraflab/dsda-doom/releases/48636378/assets",
+  "upload_url": "https://uploads.github.com/repos/kraflab/dsda-doom/releases/48636378/assets{?name,label}",
+  "html_url": "https://github.com/kraflab/dsda-doom/releases/tag/v0.21.3",
+  "id": 48636378,
+  "author": {
+    "login": "kraflab",
+    "id": 25529060,
+    "node_id": "MDQ6VXNlcjI1NTI5MDYw",
+    "avatar_url": "https://avatars.githubusercontent.com/u/25529060?v=4",
+    "gravatar_id": "",
+    "url": "https://api.github.com/users/kraflab",
+    "html_url": "https://github.com/kraflab",
+    "followers_url": "https://api.github.com/users/kraflab/followers",
+    "following_url": "https://api.github.com/users/kraflab/following{/other_user}",
+    "gists_url": "https://api.github.com/users/kraflab/gists{/gist_id}",
+    "starred_url": "https://api.github.com/users/kraflab/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/kraflab/subscriptions",
+    "organizations_url": "https://api.github.com/users/kraflab/orgs",
+    "repos_url": "https://api.github.com/users/kraflab/repos",
+    "events_url": "https://api.github.com/users/kraflab/events{/privacy}",
+    "received_events_url": "https://api.github.com/users/kraflab/received_events",
+    "type": "User",
+    "site_admin": false
+  },
+  "node_id": "MDc6UmVsZWFzZTQ4NjM2Mzc4",
+  "tag_name": "v0.21.3",
+  "target_commitish": "master",
+  "name": "v0.21.3",
+  "draft": false,
+  "prerelease": false,
+  "created_at": "2021-08-29T17:24:29Z",
+  "published_at": "2021-08-29T17:29:06Z",
+  "assets": [
+
+  ],
+  "tarball_url": "https://api.github.com/repos/kraflab/dsda-doom/tarball/v0.21.3",
+  "zipball_url": "https://api.github.com/repos/kraflab/dsda-doom/zipball/v0.21.3",
+  "body": ""
+}

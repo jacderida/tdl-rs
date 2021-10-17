@@ -1,14 +1,18 @@
-use crate::source_port::{InstalledSourcePort, SourcePort};
-use crate::storage::AppSettingsRepository;
+use crate::source_port::{
+    get_latest_source_port_release, InstalledSourcePort, ReleaseRepository, SourcePort,
+};
+use crate::storage::{AppSettingsRepository, ObjectRepository};
 use color_eyre::{eyre::eyre, Help, Report, Result};
 use log::{debug, info};
+use prettytable::{cell, row, Table};
 use std::path::PathBuf;
 use structopt::StructOpt;
+use strum::IntoEnumIterator;
 
 #[derive(Debug, StructOpt)]
 pub enum SourcePortCommand {
-    #[structopt(name = "add")]
     /// Adds a source port from an existing directory
+    #[structopt(name = "add")]
     Add {
         /// The name of the source port. Valid values are 'Chocolate', 'Crispy', 'DoomRetro',
         /// 'Dsda', 'EternityEngine', 'GzDoom', 'LzDoom', 'Odamex', 'PrBoomPlus', 'Rude', 'Woof',
@@ -19,11 +23,14 @@ pub enum SourcePortCommand {
         /// The version of the source port
         version: String,
     },
+    #[structopt(name = "ls")]
+    Ls,
 }
 
 pub fn run_source_port_cmd(
     cmd: SourcePortCommand,
-    repository: &AppSettingsRepository,
+    app_settings_repository: &AppSettingsRepository,
+    release_repository: &impl ReleaseRepository,
 ) -> Result<(), Report> {
     match cmd {
         SourcePortCommand::Add {
@@ -39,7 +46,7 @@ pub fn run_source_port_cmd(
                 &version
             );
             let source_port = InstalledSourcePort::new(name, path, &version)?;
-            let mut settings = repository.get()?;
+            let mut settings = app_settings_repository.get()?;
             if settings
                 .source_ports
                 .iter()
@@ -52,8 +59,25 @@ pub fn run_source_port_cmd(
                 .suggestion("Try adding one with a different name or version"));
             }
             settings.source_ports.push(source_port);
-            repository.save(settings)?;
+            app_settings_repository.save(settings)?;
             info!("Added version {} of {:?}", version, name);
+        }
+        SourcePortCommand::Ls => {
+            info!("Listing all available source ports...");
+            let app_settings = app_settings_repository.get()?;
+            let object_repo = ObjectRepository::new(&app_settings.release_cache_path)?;
+            let mut available_source_ports = Vec::new();
+            for sp in SourcePort::iter() {
+                let release = get_latest_source_port_release(sp, release_repository, &object_repo)?;
+                available_source_ports.push(release);
+            }
+
+            let mut table = Table::new();
+            table.add_row(row!["Source Port", "Latest Version", "Installed?"]);
+            for asp in available_source_ports {
+                table.add_row(row![asp.source_port.to_string(), asp.version, "No"]);
+            }
+            table.printstd();
         }
     }
     Ok(())
@@ -64,15 +88,19 @@ mod add {
     use super::run_source_port_cmd;
     use super::SourcePortCommand;
     use crate::settings::AppSettings;
-    use crate::source_port::InstalledSourcePort;
-    use crate::source_port::SourcePort;
+    use crate::source_port::test::FakeReleaseRepository;
+    use crate::source_port::{InstalledSourcePort, SourcePort};
     use crate::storage::AppSettingsRepository;
     use assert_fs::prelude::*;
+    use std::path::PathBuf;
 
     #[test]
     fn should_save_the_first_source_port() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let app_settings_repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let fake_release_repo = FakeReleaseRepository {
+            response_directory: PathBuf::new(),
+        };
 
         let sp_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         sp_exe.write_binary(b"fake source port code").unwrap();
@@ -82,9 +110,9 @@ mod add {
             path: sp_exe.path().to_path_buf(),
             version: "2.6".to_string(),
         };
-        run_source_port_cmd(cmd, &repo).unwrap();
+        run_source_port_cmd(cmd, &app_settings_repo, &fake_release_repo).unwrap();
 
-        let settings = repo.get().unwrap();
+        let settings = app_settings_repo.get().unwrap();
         assert_eq!(settings.source_ports.len(), 1);
         matches!(settings.source_ports[0].name, SourcePort::PrBoomPlus);
         assert_eq!(
@@ -97,7 +125,10 @@ mod add {
     #[test]
     fn should_save_a_new_source_port() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let app_settings_repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let fake_release_repo = FakeReleaseRepository {
+            response_directory: PathBuf::new(),
+        };
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
@@ -108,8 +139,9 @@ mod add {
                 version: "2.6".to_string(),
             }],
             profiles: Vec::new(),
+            release_cache_path: PathBuf::new(),
         };
-        repo.save(settings).unwrap();
+        app_settings_repo.save(settings).unwrap();
 
         let gzdoom_exe = assert_fs::NamedTempFile::new("gzdoom.exe").unwrap();
         gzdoom_exe.write_binary(b"fake source port code").unwrap();
@@ -119,9 +151,9 @@ mod add {
             path: gzdoom_exe.path().to_path_buf(),
             version: "4.6.1".to_string(),
         };
-        run_source_port_cmd(cmd, &repo).unwrap();
+        run_source_port_cmd(cmd, &app_settings_repo, &fake_release_repo).unwrap();
 
-        let settings = repo.get().unwrap();
+        let settings = app_settings_repo.get().unwrap();
         assert_eq!(settings.source_ports.len(), 2);
         matches!(settings.source_ports[1].name, SourcePort::GzDoom);
         assert_eq!(
@@ -134,7 +166,10 @@ mod add {
     #[test]
     fn should_return_error_for_duplicate_type_and_version_combination() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let app_settings_repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let fake_release_repo = FakeReleaseRepository {
+            response_directory: PathBuf::new(),
+        };
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
@@ -145,15 +180,16 @@ mod add {
                 version: "2.6".to_string(),
             }],
             profiles: Vec::new(),
+            release_cache_path: PathBuf::new(),
         };
-        repo.save(settings).unwrap();
+        app_settings_repo.save(settings).unwrap();
 
         let cmd = SourcePortCommand::Add {
             name: SourcePort::PrBoomPlus,
             path: prboom_exe.path().to_path_buf(),
             version: "2.6".to_string(),
         };
-        let result = run_source_port_cmd(cmd, &repo);
+        let result = run_source_port_cmd(cmd, &app_settings_repo, &fake_release_repo);
 
         assert!(result.is_err());
         assert_eq!(
@@ -165,7 +201,10 @@ mod add {
     #[test]
     fn should_save_source_port_with_duplicate_source_port_but_different_version() {
         let settings_file = assert_fs::NamedTempFile::new("tdl.json").unwrap();
-        let repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let app_settings_repo = AppSettingsRepository::new(settings_file.to_path_buf()).unwrap();
+        let fake_release_repo = FakeReleaseRepository {
+            response_directory: PathBuf::new(),
+        };
 
         let prboom_exe = assert_fs::NamedTempFile::new("prboom.exe").unwrap();
         prboom_exe.write_binary(b"fake source port code").unwrap();
@@ -176,17 +215,18 @@ mod add {
                 version: "2.6".to_string(),
             }],
             profiles: Vec::new(),
+            release_cache_path: PathBuf::new(),
         };
-        repo.save(settings).unwrap();
+        app_settings_repo.save(settings).unwrap();
 
         let cmd = SourcePortCommand::Add {
             name: SourcePort::PrBoomPlus,
             path: prboom_exe.path().to_path_buf(),
             version: "2.7".to_string(),
         };
-        run_source_port_cmd(cmd, &repo).unwrap();
+        run_source_port_cmd(cmd, &app_settings_repo, &fake_release_repo).unwrap();
 
-        let settings = repo.get().unwrap();
+        let settings = app_settings_repo.get().unwrap();
         assert_eq!(settings.source_ports.len(), 2);
         matches!(settings.source_ports[1].name, SourcePort::PrBoomPlus);
         assert_eq!(

@@ -199,6 +199,7 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits 0.2.14",
+ "serde 1.0.130",
  "time 0.1.43",
  "winapi",
 ]
@@ -758,9 +759,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.3.4"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7f3675cfef6a30c8031cf9e6493ebdc3bb3272a3fea3923c4210d1830e6a472"
+checksum = "6c06815895acec637cd6ed6e9662c935b866d20a106f8361892893a7d9234964"
 dependencies = [
  "bytes",
  "fnv",
@@ -1232,6 +1233,25 @@ name = "pkg-config"
 version = "0.3.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c9b1041b4387893b91ee6746cddfc28516aff326a3519fb2adf820932c5e6cb"
+
+[[package]]
+name = "pkg-version"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e848f61ee4b2010345e65757e427a077213af1cee5d3e6a02e4a151dabca377"
+dependencies = [
+ "pkg-version-impl",
+ "proc-macro-hack",
+]
+
+[[package]]
+name = "pkg-version-impl"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1564bf5d476bf4a5eac420b88c500454c000dca79cef0a2e4304a1fe34361a3b"
+dependencies = [
+ "proc-macro-hack",
+]
 
 [[package]]
 name = "ppv-lite86"
@@ -1723,6 +1743,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c307a32c1c5c437f38c7fd45d753050587732ba8628319fbdf12a7e289ccc590"
 
 [[package]]
+name = "sn_fake_clock"
+version = "0.4.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2407d5b1cfd7dd5f3a9d2fa04484473fb9cfe939e701d18a3aa14e15671cb83"
+
+[[package]]
 name = "socket2"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1827,10 +1853,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "syn"
-version = "1.0.77"
+name = "strum"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5239bc68e0fef57495900cfea4e8dc75596d9a319d7e16b1e0a440d24e6fe0a0"
+checksum = "aaf86bbcfd1fa9670b7a129f64fc0c9fcbbfe4f1bc4210e9e98fe71ffc12cde2"
+
+[[package]]
+name = "strum_macros"
+version = "0.21.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d06aaeeee809dbc59eb4556183dd927df67db1540de5be8d3ec0b6636358a5ec"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "syn"
+version = "1.0.78"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4eac2e6c19f5c3abc0c229bea31ff0b9b091c7b14990e8924b92902a303a0c0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1855,6 +1899,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "byteorder",
+ "chrono",
  "color-eyre",
  "dirs 1.0.5",
  "duct",
@@ -1863,6 +1908,7 @@ dependencies = [
  "lazy_static",
  "log",
  "maplit",
+ "pkg-version",
  "predicates",
  "prettytable-rs",
  "regex",
@@ -1871,7 +1917,10 @@ dependencies = [
  "serde-hjson",
  "serde_json",
  "skim",
+ "sn_fake_clock",
  "structopt",
+ "strum",
+ "strum_macros",
  "tar",
  "tempfile",
  "test_helpers",
@@ -1924,6 +1973,9 @@ dependencies = [
 [[package]]
 name = "test_helpers"
 version = "0.1.0"
+dependencies = [
+ "chrono",
+]
 
 [[package]]
 name = "textwrap"
@@ -2075,9 +2127,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-attributes"
-version = "0.1.16"
+version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98863d0dd09fa59a1b79c6750ad80dbda6b75f4e71c437a6a1a8cb91a8bcbd77"
+checksum = "c4f915eb6abf914599c200260efced9203504c4c37380af10cdf3b7d36970650"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2086,9 +2138,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-core"
-version = "0.1.20"
+version = "0.1.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46125608c26121c81b0c6d693eab5a420e416da7e43c426d2e8f7df8da8a3acf"
+checksum = "1f4ed65637b8390770814083d20756f87bfa2c21bf2f110babdc5438351746e4"
 dependencies = [
  "lazy_static",
 ]
