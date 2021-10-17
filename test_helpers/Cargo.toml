@@ -4,3 +4,6 @@ version = "0.1.0"
 publish = false
 license = "MIT OR BSD-3-Clause"
 edition = "2018"
+
+[dependencies]
+chrono = { version = "~0.4", features = ["serde"] }
