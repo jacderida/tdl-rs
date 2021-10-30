@@ -1,8 +1,8 @@
-use crate::storage::ObjectRepository;
+use crate::storage::{ObjectRepository, StorageError};
 use chrono::DateTime;
 #[cfg(not(test))]
 use chrono::Utc;
-use color_eyre::{eyre::ensure, eyre::eyre, Report, Result};
+use color_eyre::{eyre::ensure, Report, Result};
 use lazy_static::lazy_static;
 use log::{debug, info};
 use regex::Regex;
@@ -15,6 +15,7 @@ use structopt::StructOpt;
 use strum_macros::EnumIter;
 #[cfg(test)]
 use test_helpers::FakeUtc as Utc;
+use thiserror::Error;
 
 const GITHUB_API_URL: &str = "https://api.github.com";
 lazy_static! {
@@ -53,6 +54,22 @@ lazy_static! {
             SourcePort::Zandronum => ("TorrSamaho", "zandronum"),
         }
     };
+}
+
+#[derive(Debug, Error)]
+pub enum SourcePortError {
+    #[error("The source port {0} has no releases marked as latest")]
+    NoLatestRelease(String),
+    #[error("Could not parse version number from {0} for {1} source port")]
+    VersionParsing(String, String),
+    #[error("Failed to retrieve release request response from Github API")]
+    GithubApiResponseError(#[from] reqwest::Error),
+    #[error(transparent)]
+    StorageError(#[from] StorageError),
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
+    SerializationError(#[from] serde_json::Error),
 }
 
 #[derive(Clone, Debug, StructOpt, Serialize, Deserialize)]
@@ -181,8 +198,14 @@ pub struct CachedSourcePortRelease {
 }
 
 pub trait ReleaseRepository {
-    fn get_latest_release(&self, source_port: SourcePort) -> Result<SourcePortRelease, Report>;
-    fn get_releases(&self, source_port: SourcePort) -> Result<Vec<SourcePortRelease>>;
+    fn get_latest_release(
+        &self,
+        source_port: SourcePort,
+    ) -> Result<SourcePortRelease, SourcePortError>;
+    fn get_releases(
+        &self,
+        source_port: SourcePort,
+    ) -> Result<Vec<SourcePortRelease>, SourcePortError>;
 }
 
 pub struct GithubReleaseRepository {
@@ -198,7 +221,10 @@ impl GithubReleaseRepository {
 }
 
 impl ReleaseRepository for GithubReleaseRepository {
-    fn get_latest_release(&self, source_port: SourcePort) -> Result<SourcePortRelease, Report> {
+    fn get_latest_release(
+        &self,
+        source_port: SourcePort,
+    ) -> Result<SourcePortRelease, SourcePortError> {
         let (owner, repository) = SOURCE_PORT_OWNERS_MAP.get(&source_port).unwrap();
         info!("Getting latest version for {}/{}", owner, repository);
         let latest_release_url = format!(
@@ -214,29 +240,35 @@ impl ReleaseRepository for GithubReleaseRepository {
             .header(reqwest::header::ACCEPT, "application/vnd.github.v3+json")
             .send()?;
         let response_json = response.json::<serde_json::Value>()?;
-        get_source_port_release_from_response(source_port, &response_json)
+        get_latest_source_port_release_from_response(source_port, &response_json)
     }
 
-    fn get_releases(&self, source_port: SourcePort) -> Result<Vec<SourcePortRelease>> {
+    fn get_releases(
+        &self,
+        source_port: SourcePort,
+    ) -> Result<Vec<SourcePortRelease>, SourcePortError> {
         Ok(Vec::new())
     }
 }
 
-pub fn get_source_port_release_from_response(
+fn get_latest_source_port_release_from_response(
     source_port: SourcePort,
     response: &Value,
-) -> Result<SourcePortRelease, Report> {
+) -> Result<SourcePortRelease, SourcePortError> {
+    let tag = response["tag_name"].as_str();
+    if tag.is_none() {
+        return Err(SourcePortError::NoLatestRelease(source_port.to_string()));
+    }
+    let tag = tag.unwrap();
     let (owner, repository) = SOURCE_PORT_OWNERS_MAP.get(&source_port).unwrap();
-    let tag = response["tag_name"]
-        .as_str()
-        .ok_or_else(|| eyre!("Response is missing `tag_name`"))?;
-    let r#match = VERSION_REGEX.find(tag).ok_or_else(|| {
-        eyre!(format!(
-            "Error retrieving latest version on {}/{}: no version number could be parsed from {}",
-            owner, repository, tag
-        ))
-    })?;
-    let version = r#match.as_str();
+    let version = if let Some(regex_match) = VERSION_REGEX.find(tag) {
+        regex_match.as_str()
+    } else {
+        return Err(SourcePortError::VersionParsing(
+            tag.to_string(),
+            source_port.to_string(),
+        ));
+    };
 
     let mut release_assets = Vec::new();
     let assets = response["assets"].as_array().unwrap();
@@ -272,13 +304,12 @@ pub fn get_latest_source_port_release(
     source_port: SourcePort,
     release_repository: &impl ReleaseRepository,
     object_repository: &ObjectRepository,
-) -> Result<SourcePortRelease, Report> {
+) -> Result<SourcePortRelease, SourcePortError> {
     let (owner, repository) = SOURCE_PORT_OWNERS_MAP.get(&source_port).unwrap();
     let id = format!("{}.{}.latest", owner, repository);
-    let cache_result: Result<CachedSourcePortRelease, Report> = object_repository.get(&id);
-    if cache_result.is_ok() {
+    let cache_result: Result<CachedSourcePortRelease, StorageError> = object_repository.get(&id);
+    if let Ok(cache_entry) = cache_result {
         debug!("Github release cache has entry for {}", id);
-        let cache_entry = cache_result.unwrap();
         let duration = Utc::now() - cache_entry.cached_date;
         if duration.num_hours() < 24 {
             debug!(
@@ -313,10 +344,9 @@ fn get_current_tdl_version() -> String {
 #[cfg(test)]
 pub mod test {
     use super::{
-        get_source_port_release_from_response, ReleaseRepository, SourcePort, SourcePortRelease,
-        SOURCE_PORT_OWNERS_MAP,
+        get_latest_source_port_release_from_response, ReleaseRepository, SourcePort,
+        SourcePortError, SourcePortRelease, SOURCE_PORT_OWNERS_MAP,
     };
-    use color_eyre::Report;
     use serde_json::Value;
     use std::path::{Path, PathBuf};
 
@@ -325,24 +355,30 @@ pub mod test {
     }
 
     impl ReleaseRepository for FakeReleaseRepository {
-        fn get_releases(&self, source_port: SourcePort) -> Result<Vec<SourcePortRelease>, Report> {
+        fn get_releases(
+            &self,
+            source_port: SourcePort,
+        ) -> Result<Vec<SourcePortRelease>, SourcePortError> {
             Ok(Vec::new())
         }
 
-        fn get_latest_release(&self, source_port: SourcePort) -> Result<SourcePortRelease, Report> {
+        fn get_latest_release(
+            &self,
+            source_port: SourcePort,
+        ) -> Result<SourcePortRelease, SourcePortError> {
             let (owner, repository) = SOURCE_PORT_OWNERS_MAP.get(&source_port).unwrap();
             let cached_github_response_path = Path::new(&self.response_directory)
                 .join(format!("{}.{}.latest.json", owner, repository));
             let github_response = std::fs::read_to_string(cached_github_response_path)?;
             let github_response_json: Value = serde_json::from_str(&github_response)?;
-            get_source_port_release_from_response(source_port, &github_response_json)
+            get_latest_source_port_release_from_response(source_port, &github_response_json)
         }
     }
 }
 
 #[cfg(test)]
-mod get_source_port_release_from_response {
-    use super::{get_source_port_release_from_response, SourcePort};
+mod get_latest_source_port_release_from_response {
+    use super::{get_latest_source_port_release_from_response, SourcePort, SourcePortError};
     use serde_json::Value;
     use std::path::Path;
 
@@ -354,7 +390,8 @@ mod get_source_port_release_from_response {
         let response = std::fs::read_to_string(response_path).unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
 
-        let result = get_source_port_release_from_response(SourcePort::Chocolate, &response_json);
+        let result =
+            get_latest_source_port_release_from_response(SourcePort::Chocolate, &response_json);
 
         assert!(result.is_ok());
         let release = result.unwrap();
@@ -375,7 +412,8 @@ mod get_source_port_release_from_response {
         let response = std::fs::read_to_string(response_path).unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
 
-        let result = get_source_port_release_from_response(SourcePort::Crispy, &response_json);
+        let result =
+            get_latest_source_port_release_from_response(SourcePort::Crispy, &response_json);
 
         assert!(result.is_ok());
         let release = result.unwrap();
@@ -393,7 +431,8 @@ mod get_source_port_release_from_response {
         let response = std::fs::read_to_string(response_path).unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
 
-        let result = get_source_port_release_from_response(SourcePort::DoomRetro, &response_json);
+        let result =
+            get_latest_source_port_release_from_response(SourcePort::DoomRetro, &response_json);
 
         assert!(result.is_ok());
         let release = result.unwrap();
@@ -411,7 +450,7 @@ mod get_source_port_release_from_response {
         let response = std::fs::read_to_string(response_path).unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
 
-        let result = get_source_port_release_from_response(SourcePort::Dsda, &response_json);
+        let result = get_latest_source_port_release_from_response(SourcePort::Dsda, &response_json);
 
         assert!(result.is_ok());
         let release = result.unwrap();
@@ -428,8 +467,10 @@ mod get_source_port_release_from_response {
         let response = std::fs::read_to_string(response_path).unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
 
-        let result =
-            get_source_port_release_from_response(SourcePort::EternityEngine, &response_json);
+        let result = get_latest_source_port_release_from_response(
+            SourcePort::EternityEngine,
+            &response_json,
+        );
 
         assert!(result.is_ok());
         let release = result.unwrap();
@@ -449,7 +490,8 @@ mod get_source_port_release_from_response {
         let response = std::fs::read_to_string(response_path).unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
 
-        let result = get_source_port_release_from_response(SourcePort::GzDoom, &response_json);
+        let result =
+            get_latest_source_port_release_from_response(SourcePort::GzDoom, &response_json);
 
         assert!(result.is_ok());
         let release = result.unwrap();
@@ -472,7 +514,8 @@ mod get_source_port_release_from_response {
         let response = std::fs::read_to_string(response_path).unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
 
-        let result = get_source_port_release_from_response(SourcePort::LzDoom, &response_json);
+        let result =
+            get_latest_source_port_release_from_response(SourcePort::LzDoom, &response_json);
 
         assert!(result.is_ok());
         let release = result.unwrap();
@@ -498,7 +541,8 @@ mod get_source_port_release_from_response {
         let response = std::fs::read_to_string(response_path).unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
 
-        let result = get_source_port_release_from_response(SourcePort::Odamex, &response_json);
+        let result =
+            get_latest_source_port_release_from_response(SourcePort::Odamex, &response_json);
 
         assert!(result.is_ok());
         let release = result.unwrap();
@@ -524,7 +568,8 @@ mod get_source_port_release_from_response {
         let response = std::fs::read_to_string(response_path).unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
 
-        let result = get_source_port_release_from_response(SourcePort::PrBoomPlus, &response_json);
+        let result =
+            get_latest_source_port_release_from_response(SourcePort::PrBoomPlus, &response_json);
 
         assert!(result.is_ok());
         let release = result.unwrap();
@@ -545,7 +590,7 @@ mod get_source_port_release_from_response {
         let response = std::fs::read_to_string(response_path).unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
 
-        let result = get_source_port_release_from_response(SourcePort::Woof, &response_json);
+        let result = get_latest_source_port_release_from_response(SourcePort::Woof, &response_json);
 
         assert!(result.is_ok());
         let release = result.unwrap();
@@ -556,6 +601,24 @@ mod get_source_port_release_from_response {
         assert_eq!(
             release.assets[0].1,
             "https://github.com/fabiangreffrath/woof/releases/download/woof_7.0.0/Woof-7.0.0-win32.zip"
+        );
+    }
+
+    #[test]
+    fn should_return_an_error_for_source_port_with_no_latest_release_marked() {
+        let response_path =
+            Path::new("resources/test_data/github_responses/drfrag666.rude.latest.json");
+        let response = std::fs::read_to_string(response_path).unwrap();
+        let response_json: Value = serde_json::from_str(&response).unwrap();
+
+        let result = get_latest_source_port_release_from_response(SourcePort::Rude, &response_json);
+
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        matches!(error, SourcePortError::NoLatestRelease(_));
+        assert_eq!(
+            error.to_string(),
+            "The source port RUDE has no releases marked as latest"
         );
     }
 }
