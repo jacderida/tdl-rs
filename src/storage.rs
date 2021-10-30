@@ -1,9 +1,22 @@
 use crate::settings::AppSettings;
-use color_eyre::{eyre::ensure, eyre::eyre, Report, Result};
+use color_eyre::{eyre::eyre, Report, Result};
 use log::{debug, info};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum StorageError {
+    #[error("{0}")]
+    ObjectIdError(String),
+    #[error("The object path cannot be set to an existing file")]
+    InvalidObjectPath,
+    #[error(transparent)]
+    SerializationError(#[from] serde_json::Error),
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+}
 
 /// A repository for saving 'objects'.
 ///
@@ -31,12 +44,11 @@ impl ObjectRepository {
     /// Result will be an error if `object_path` is an existing file.
     ///
     /// Any other errors would be from file IO.
-    pub fn new(object_path: &impl AsRef<Path>) -> Result<ObjectRepository, Report> {
+    pub fn new(object_path: &impl AsRef<Path>) -> Result<ObjectRepository, StorageError> {
         let pb = PathBuf::from(object_path.as_ref());
-        ensure!(
-            !pb.is_file(),
-            "The object path cannot be set to an existing file"
-        );
+        if pb.is_file() {
+            return Err(StorageError::InvalidObjectPath);
+        }
         if !pb.exists() {
             std::fs::create_dir_all(&pb)?;
         }
@@ -52,7 +64,7 @@ impl ObjectRepository {
     ///
     /// Should only be related to IO or if the object being retrieved is not valid JSON (which
     /// shouldn't happen if it's been saved by this application).
-    pub fn get<T: DeserializeOwned>(&self, id: &str) -> Result<T, Report> {
+    pub fn get<T: DeserializeOwned>(&self, id: &str) -> Result<T, StorageError> {
         let mut pb = PathBuf::from(&self.object_path);
         pb.push(format!("{}.json", id));
         debug!("Deserializing {}", pb.as_path().display());
@@ -71,15 +83,21 @@ impl ObjectRepository {
     /// Result will be an error if there is already an object with the specified ID.
     ///
     /// Any other errors would be from file IO or the JSON library.
-    pub fn save<T: Serialize>(&self, id: &str, object: &T) -> Result<(), Report> {
-        ensure!(!id.is_empty(), "To save the object, its ID must be set.");
+    pub fn save<T: Serialize>(&self, id: &str, object: &T) -> Result<(), StorageError> {
+        if id.is_empty() {
+            return Err(StorageError::ObjectIdError(String::from(
+                "To save the object, its ID must be set.",
+            )));
+        }
         let serialized = serde_json::to_string(&object)?;
         let mut save_pb = PathBuf::from(&self.object_path);
         save_pb.push(format!("{}.json", id));
-        ensure!(
-            !save_pb.exists(),
-            format!("The ID '{}' is already taken.", id)
-        );
+        if save_pb.exists() {
+            return Err(StorageError::ObjectIdError(String::from(format!(
+                "The ID '{}' is already taken.",
+                id
+            ))));
+        }
         info!("Saving entry for {}", id);
         std::fs::write(save_pb.as_path(), serialized)?;
         Ok(())
@@ -88,7 +106,7 @@ impl ObjectRepository {
     /// Deletes a saved object.
     ///
     /// This exists for use with the Github release cache to remove stale cache entries.
-    pub fn delete(&self, id: &str) -> Result<(), Report> {
+    pub fn delete(&self, id: &str) -> Result<(), StorageError> {
         let object_path = Path::new(&self.object_path).join(format!("{}.json", id));
         if object_path.exists() {
             std::fs::remove_file(object_path)?;
