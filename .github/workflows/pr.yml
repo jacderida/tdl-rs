@@ -78,5 +78,7 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-cargo-cache-${{ hashFiles('**/Cargo.lock') }}
-      - name: run profile ls tests
-        run: cargo test --test profile_ls
+      - name: run integration tests
+        run: |
+          cargo test --test profile_ls
+          cargo test --test source_port_ls --features=rate-limiting-tests
