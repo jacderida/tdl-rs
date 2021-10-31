@@ -1,5 +1,6 @@
 use crate::source_port::{
     get_latest_source_port_release, InstalledSourcePort, ReleaseRepository, SourcePort,
+    SourcePortError,
 };
 use crate::storage::{AppSettingsRepository, ObjectRepository};
 use color_eyre::{eyre::eyre, Help, Report, Result};
@@ -67,9 +68,21 @@ pub fn run_source_port_cmd(
             let app_settings = app_settings_repository.get()?;
             let object_repo = ObjectRepository::new(&app_settings.release_cache_path)?;
             let mut available_source_ports = Vec::new();
+            let mut no_release_source_ports: Vec<SourcePort> = Vec::new();
             for sp in SourcePort::iter() {
-                let release = get_latest_source_port_release(sp, release_repository, &object_repo)?;
-                available_source_ports.push(release);
+                match get_latest_source_port_release(sp, release_repository, &object_repo) {
+                    Ok(release) => {
+                        available_source_ports.push(release);
+                    }
+                    Err(error) => match error {
+                        SourcePortError::NoLatestRelease(sp) => {
+                            no_release_source_ports.push(sp);
+                        }
+                        _ => {
+                            return Err(eyre!(error));
+                        }
+                    },
+                }
             }
 
             let mut table = Table::new();
@@ -78,6 +91,13 @@ pub fn run_source_port_cmd(
                 table.add_row(row![asp.source_port.to_string(), asp.version, "No"]);
             }
             table.printstd();
+
+            if !no_release_source_ports.is_empty() {
+                println!("The following source ports had no releases marked as latest:");
+                for sp in no_release_source_ports {
+                    println!("* {} has no version marked as latest", sp);
+                }
+            }
         }
     }
     Ok(())
