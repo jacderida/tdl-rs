@@ -59,7 +59,7 @@ lazy_static! {
 #[derive(Debug, Error)]
 pub enum SourcePortError {
     #[error("The source port {0} has no releases marked as latest")]
-    NoLatestRelease(String),
+    NoLatestRelease(SourcePort),
     #[error("Could not parse version number from {0} for {1} source port")]
     VersionParsing(String, String),
     #[error("Failed to retrieve release request response from Github API")]
@@ -257,7 +257,7 @@ fn get_latest_source_port_release_from_response(
 ) -> Result<SourcePortRelease, SourcePortError> {
     let tag = response["tag_name"].as_str();
     if tag.is_none() {
-        return Err(SourcePortError::NoLatestRelease(source_port.to_string()));
+        return Err(SourcePortError::NoLatestRelease(source_port));
     }
     let tag = tag.unwrap();
     let (owner, repository) = SOURCE_PORT_OWNERS_MAP.get(&source_port).unwrap();
@@ -306,7 +306,7 @@ pub fn get_latest_source_port_release(
     object_repository: &ObjectRepository,
 ) -> Result<SourcePortRelease, SourcePortError> {
     let (owner, repository) = SOURCE_PORT_OWNERS_MAP.get(&source_port).unwrap();
-    let id = format!("{}.{}.latest", owner, repository);
+    let id = format!("{}.{}.latest", owner, repository.to_lowercase());
     let cache_result: Result<CachedSourcePortRelease, StorageError> = object_repository.get(&id);
     if let Ok(cache_entry) = cache_result {
         debug!("Github release cache has entry for {}", id);
@@ -316,6 +316,9 @@ pub fn get_latest_source_port_release(
                 "Cache entry is {} old so another Github API call will be avoided",
                 duration.num_hours()
             );
+            if cache_entry.release.version == "no_latest_release" {
+                return Err(SourcePortError::NoLatestRelease(source_port));
+            }
             return Ok(cache_entry.release);
         }
         debug!("Cache entry is older than 24 hours so it will be deleted");
@@ -323,13 +326,41 @@ pub fn get_latest_source_port_release(
     }
 
     debug!("No cached entry for {} so Github will be queried...", id);
-    let latest_release = release_repository.get_latest_release(source_port)?;
-    let cache_entry = CachedSourcePortRelease {
-        release: latest_release.clone(),
-        cached_date: Utc::now(),
-    };
-    object_repository.save(&id, &cache_entry)?;
-    Ok(latest_release)
+    match release_repository.get_latest_release(source_port) {
+        Ok(latest_release) => {
+            let cache_entry = CachedSourcePortRelease {
+                release: latest_release.clone(),
+                cached_date: Utc::now(),
+            };
+            object_repository.save(&id, &cache_entry)?;
+            Ok(latest_release)
+        }
+        Err(error) => {
+            debug!(
+                "Error retrieving latest release for {}: {}",
+                source_port, error
+            );
+            match error {
+                SourcePortError::NoLatestRelease(_) => {
+                    let cache_missing_release = CachedSourcePortRelease {
+                        cached_date: Utc::now(),
+                        release: SourcePortRelease {
+                            source_port,
+                            owner: String::from(*owner),
+                            repository: String::from(*repository),
+                            version: String::from("no_latest_release"),
+                            assets: Vec::new(),
+                        },
+                    };
+                    object_repository.save(&id, &cache_missing_release)?;
+                }
+                _ => {}
+            }
+            // We want to just return back whatever the original error was, including if it was the
+            // missing latest release error.
+            Err(error)
+        }
+    }
 }
 
 fn get_current_tdl_version() -> String {
@@ -367,8 +398,11 @@ pub mod test {
             source_port: SourcePort,
         ) -> Result<SourcePortRelease, SourcePortError> {
             let (owner, repository) = SOURCE_PORT_OWNERS_MAP.get(&source_port).unwrap();
-            let cached_github_response_path = Path::new(&self.response_directory)
-                .join(format!("{}.{}.latest.json", owner, repository));
+            let cached_github_response_path = Path::new(&self.response_directory).join(format!(
+                "{}.{}.latest.json",
+                owner,
+                repository.to_lowercase()
+            ));
             let github_response = std::fs::read_to_string(cached_github_response_path)?;
             let github_response_json: Value = serde_json::from_str(&github_response)?;
             get_latest_source_port_release_from_response(source_port, &github_response_json)
@@ -626,7 +660,7 @@ mod get_latest_source_port_release_from_response {
 #[cfg(test)]
 mod get_latest_source_port_version {
     use super::test::FakeReleaseRepository;
-    use super::{get_latest_source_port_release, CachedSourcePortRelease};
+    use super::{get_latest_source_port_release, CachedSourcePortRelease, SourcePortError};
     use crate::source_port::SourcePort;
     use crate::storage::ObjectRepository;
     use assert_fs::prelude::*;
@@ -816,9 +850,108 @@ mod get_latest_source_port_version {
             &object_repository,
         );
 
-        //assert!(result.is_ok());
+        assert!(result.is_ok());
         let source_port = result.unwrap();
         assert_eq!(source_port.version, "5.10.3");
+    }
+
+    #[test]
+    fn should_return_an_error_for_no_release_marked_latest() {
+        let temp_dir = assert_fs::TempDir::new().unwrap();
+        let github_response_dir = temp_dir.child("github_responses");
+        github_response_dir
+            .copy_from("resources/test_data/github_responses", &["**"])
+            .unwrap();
+        let github_cache_dir = temp_dir.child("github_cache");
+        let release_repository = FakeReleaseRepository {
+            response_directory: github_response_dir.to_path_buf(),
+        };
+        let object_repository = ObjectRepository::new(&github_cache_dir.to_path_buf()).unwrap();
+
+        let result = get_latest_source_port_release(
+            SourcePort::Rude,
+            &release_repository,
+            &object_repository,
+        );
+
+        assert!(result.is_err());
+        matches!(
+            result.unwrap_err(),
+            SourcePortError::NoLatestRelease(SourcePort::Rude)
+        );
+    }
+
+    #[test]
+    fn should_return_error_and_cache_source_port_with_no_latest_release() {
+        let temp_dir = assert_fs::TempDir::new().unwrap();
+        let github_response_dir = temp_dir.child("github_responses");
+        github_response_dir
+            .copy_from("resources/test_data/github_responses", &["**"])
+            .unwrap();
+        let github_cache_dir = temp_dir.child("github_cache");
+        let rude_cache_entry = github_cache_dir.child("drfrag666.rude.latest.json");
+        let release_repository = FakeReleaseRepository {
+            response_directory: github_response_dir.to_path_buf(),
+        };
+        let object_repository = ObjectRepository::new(&github_cache_dir.to_path_buf()).unwrap();
+
+        let result = get_latest_source_port_release(
+            SourcePort::Rude,
+            &release_repository,
+            &object_repository,
+        );
+
+        assert!(result.is_err());
+        matches!(
+            result.unwrap_err(),
+            SourcePortError::NoLatestRelease(SourcePort::Rude)
+        );
+        rude_cache_entry.assert(predicates::path::is_file());
+    }
+
+    #[test]
+    fn should_return_error_when_missing_release_is_cached() {
+        // This date and time is completely arbitrary. It's just assigned so that the test isn't
+        // dependent on the current date or any timezone issues and such.
+        let dt = chrono::prelude::Utc.ymd(2021, 10, 1).and_hms(10, 10, 10);
+        FakeUtc::set_date_time(dt).unwrap();
+        let serialized_cache_entry = r#"
+        {
+            "cached_date": "__DATE__",
+            "release": {
+                "source_port": "Rude",
+                "owner": "drfrag666",
+                "repository": "rude",
+                "version": "no_latest_release",
+                "assets": []
+            }
+        }"#;
+        let serialized_cache_entry = serialized_cache_entry.replace("__DATE__", &dt.to_string());
+
+        let temp_dir = assert_fs::TempDir::new().unwrap();
+        let github_response_dir = temp_dir.child("github_responses");
+        github_response_dir
+            .copy_from("resources/test_data/github_responses", &["**"])
+            .unwrap();
+        let github_cache_dir = temp_dir.child("github_cache");
+        let rude_cache_entry = github_cache_dir.child("drfrag666.rude.latest.json");
+        rude_cache_entry.write_str(&serialized_cache_entry).unwrap();
+        let release_repository = FakeReleaseRepository {
+            response_directory: github_response_dir.to_path_buf(),
+        };
+        let object_repository = ObjectRepository::new(&github_cache_dir.to_path_buf()).unwrap();
+
+        let result = get_latest_source_port_release(
+            SourcePort::Rude,
+            &release_repository,
+            &object_repository,
+        );
+
+        assert!(result.is_err());
+        matches!(
+            result.unwrap_err(),
+            SourcePortError::NoLatestRelease(SourcePort::Rude)
+        );
     }
 }
 
