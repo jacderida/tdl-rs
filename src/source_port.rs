@@ -307,13 +307,14 @@ pub fn get_latest_source_port_release(
 ) -> Result<SourcePortRelease, SourcePortError> {
     let (owner, repository) = SOURCE_PORT_OWNERS_MAP.get(&source_port).unwrap();
     let id = format!("{}.{}.latest", owner, repository.to_lowercase());
+    debug!("Checking if Github release cache has entry for {}", id);
     let cache_result: Result<CachedSourcePortRelease, StorageError> = object_repository.get(&id);
     if let Ok(cache_entry) = cache_result {
         debug!("Github release cache has entry for {}", id);
         let duration = Utc::now() - cache_entry.cached_date;
         if duration.num_hours() < 24 {
             debug!(
-                "Cache entry is {} old so another Github API call will be avoided",
+                "Cache entry is {} hours old so another Github API call will be avoided",
                 duration.num_hours()
             );
             if cache_entry.release.version == "no_latest_release" {
@@ -342,6 +343,8 @@ pub fn get_latest_source_port_release(
             );
             match error {
                 SourcePortError::NoLatestRelease(_) => {
+                    // Take the opportunity to cache the missing release, as we don't want to keep
+                    // hitting the API even for a missing one.
                     let cache_missing_release = CachedSourcePortRelease {
                         cached_date: Utc::now(),
                         release: SourcePortRelease {

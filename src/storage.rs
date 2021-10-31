@@ -67,6 +67,13 @@ impl ObjectRepository {
     pub fn get<T: DeserializeOwned>(&self, id: &str) -> Result<T, StorageError> {
         let mut pb = PathBuf::from(&self.object_path);
         pb.push(format!("{}.json", id));
+        if !pb.exists() {
+            debug!("The object cache has no entry with ID {}", id);
+            return Err(StorageError::ObjectIdError(format!(
+                "No repository entry for ID {}",
+                id
+            )));
+        }
         debug!("Deserializing {}", pb.as_path().display());
         let serialized = std::fs::read_to_string(pb.as_path().to_str().unwrap())?;
         Ok(serde_json::from_str(&serialized)?)
@@ -294,7 +301,7 @@ mod object_repository {
     }
 
     mod get {
-        use super::super::ObjectRepository;
+        use super::super::{ObjectRepository, StorageError};
         use crate::wad::MapInfo;
         use crate::wad::WadEntry;
         use assert_fs::prelude::*;
@@ -330,6 +337,21 @@ mod object_repository {
             assert_eq!(saved.release_date, entry.release_date);
             assert_eq!(saved.author, entry.author);
             assert_eq!(saved.maps.len(), entry.maps.len());
+        }
+
+        #[test]
+        fn should_return_error_for_non_existent_entry() {
+            let tmp_dir = assert_fs::TempDir::new().unwrap();
+            let wad_dir = tmp_dir.child("wads");
+            wad_dir.create_dir_all().unwrap();
+
+            let sut = ObjectRepository::new(&wad_dir).unwrap();
+
+            let result: Result<WadEntry, StorageError> = sut.get("bad.id");
+            assert!(result.is_err());
+            let error = result.unwrap_err();
+            matches!(error, StorageError::ObjectIdError(_));
+            assert_eq!(error.to_string(), "No repository entry for ID bad.id");
         }
     }
 
