@@ -20,6 +20,8 @@ dirs = "~1.0"
 duct = "~0.13"
 env_logger = "~0.9"
 flate2 = "~1.0"
+fs_extra = "~1.2.0"
+indicatif = "~0.16"
 lazy_static = "~1.4"
 log = "~0.4"
 maplit = "~1.0"
@@ -36,6 +38,9 @@ strum_macros = "~0.21"
 tar = "~0.4"
 tempfile = "~3.2"
 thiserror = "~1.0"
+url = "2.2.2"
+zip = "~0.5"
+zip-extensions = "~0.6"
 
 [features]
 default = ["reqwest/default-tls"]

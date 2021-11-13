@@ -1,6 +1,6 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
-use test_helpers::helpers::get_fake_source_port_path;
+use test_helpers::source_port::get_fake_source_port_path;
 
 #[test]
 fn profile_ls_with_2_profiles_should_list_the_added_profiles() {

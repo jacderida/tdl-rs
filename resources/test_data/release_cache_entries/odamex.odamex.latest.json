@@ -1,0 +1,20 @@
+{
+  "cached_date": "__CACHED_DATE__",
+  "release": {
+    "source_port": "Odamex",
+    "owner": "odamex",
+    "repository": "odamex",
+    "version": "0.9.5",
+    "assets": [
+      [
+        "windows",
+        "https://github.com/odamex/odamex/releases/download/0.9.5/odamex-win64-0.9.5.zip"
+      ],
+      [
+        "macos",
+        "https://github.com/odamex/odamex/releases/download/0.9.5/odamex-macos-0.9.5.dmg"
+      ]
+    ]
+  }
+}
+

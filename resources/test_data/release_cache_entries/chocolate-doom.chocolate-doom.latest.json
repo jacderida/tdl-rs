@@ -1,0 +1,20 @@
+{
+  "cached_date": "__CACHED_DATE__",
+  "release": {
+    "source_port": "Chocolate",
+    "owner": "chocolate-doom",
+    "repository": "chocolate-doom",
+    "version": "3.0.0",
+    "assets": [
+      [
+        "windows",
+        "https://github.com/chocolate-doom/chocolate-doom/releases/download/chocolate-doom-3.0.0/chocolate-doom-3.0.0-win32.zip"
+      ],
+      [
+        "macos",
+        "https://github.com/chocolate-doom/chocolate-doom/releases/download/chocolate-doom-3.0.0/chocolate-doom-3.0.0.dmg"
+      ]
+    ]
+  }
+}
+

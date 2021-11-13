@@ -1,0 +1,20 @@
+{
+  "cached_date": "__CACHED_DATE__",
+  "release": {
+    "source_port": "EternityEngine",
+    "owner": "team-eternity",
+    "repository": "eternity",
+    "version": "4.02.00",
+    "assets": [
+      [
+        "windows",
+        "https://github.com/team-eternity/eternity/releases/download/4.02.00/ee-4.02.00-win64.zip"
+      ],
+      [
+        "macos",
+        "https://github.com/team-eternity/eternity/releases/download/4.02.00/ee-4.02.00-macos.dmg"
+      ]
+    ]
+  }
+}
+

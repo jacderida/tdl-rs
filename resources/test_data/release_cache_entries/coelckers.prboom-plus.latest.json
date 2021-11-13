@@ -1,0 +1,16 @@
+{
+  "cached_date": "__CACHED_DATE__",
+  "release": {
+    "source_port": "PrBoomPlus",
+    "owner": "coelckers",
+    "repository": "prboom-plus",
+    "version": "2.6.1um",
+    "assets": [
+      [
+        "windows",
+        "https://github.com/coelckers/prboom-plus/releases/download/v2.6.1um/prboom-plus-261um-w32.zip"
+      ]
+    ]
+  }
+}
+
