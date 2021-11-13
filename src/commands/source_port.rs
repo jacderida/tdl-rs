@@ -1,6 +1,7 @@
+use crate::settings::{get_user_settings, AppSettings};
 use crate::source_port::{
-    get_latest_source_port_release, InstalledSourcePort, ReleaseRepository, SourcePort,
-    SourcePortError,
+    get_latest_source_port_release, install_source_port_release, InstalledSourcePort,
+    ReleaseRepository, SourcePort, SourcePortError, SourcePortRelease,
 };
 use crate::storage::{AppSettingsRepository, ObjectRepository};
 use color_eyre::{eyre::eyre, Help, Report, Result};
@@ -24,6 +25,19 @@ pub enum SourcePortCommand {
         /// The version of the source port
         version: String,
     },
+    /// Install a supported source port.
+    #[structopt(name = "install")]
+    Install {
+        /// The source port to install. Valid values are 'Chocolate', 'Crispy', 'DoomRetro',
+        /// 'Dsda', 'EternityEngine', 'GzDoom', 'LzDoom', 'Odamex', 'PrBoomPlus', 'Rude', 'Woof',
+        /// 'Zandronum'.
+        source_port: SourcePort,
+        #[structopt(name = "version", short, long)]
+        /// The version of the source port to install. If this is not supplied, the latest version
+        /// will be installed.
+        version: Option<String>,
+    },
+    /// Lists all supported source ports and their latest versions.
     #[structopt(name = "ls")]
     Ls,
 }
@@ -46,22 +60,18 @@ pub fn run_source_port_cmd(
                 path.display(),
                 &version
             );
-            let source_port = InstalledSourcePort::new(name, path, &version)?;
-            let mut settings = app_settings_repository.get()?;
-            if settings
-                .source_ports
-                .iter()
-                .any(|sp| sp.name == name && sp.version == version)
-            {
-                return Err(eyre!(format!(
-                    "There is already a {:?} source port at version {}",
-                    name, version
-                ))
-                .suggestion("Try adding one with a different name or version"));
-            }
-            settings.source_ports.push(source_port);
-            app_settings_repository.save(settings)?;
-            info!("Added version {} of {:?}", version, name);
+            add_source_port(app_settings_repository, name, path, version)?;
+        }
+        SourcePortCommand::Install {
+            source_port,
+            version,
+        } => {
+            run_install_subcommand(
+                source_port,
+                version,
+                app_settings_repository,
+                release_repository,
+            )?;
         }
         SourcePortCommand::Ls => {
             info!("Listing all available source ports...");
@@ -88,7 +98,12 @@ pub fn run_source_port_cmd(
             let mut table = Table::new();
             table.add_row(row!["Source Port", "Latest Version", "Installed?"]);
             for asp in available_source_ports {
-                table.add_row(row![asp.source_port.to_string(), asp.version, "No"]);
+                let installed = if is_source_port_installed(&asp, &app_settings) {
+                    "Yes"
+                } else {
+                    "No"
+                };
+                table.add_row(row![asp.source_port.to_string(), asp.version, installed]);
             }
             table.printstd();
 
@@ -101,6 +116,109 @@ pub fn run_source_port_cmd(
         }
     }
     Ok(())
+}
+
+fn run_install_subcommand(
+    source_port: SourcePort,
+    version: Option<String>,
+    app_settings_repository: &AppSettingsRepository,
+    release_repository: &impl ReleaseRepository,
+) -> Result<(), Report> {
+    if cfg!(target_family = "unix") {
+        return Err(eyre!(
+            "The install command is not supported on unix-based operating systems"
+        ));
+    }
+    info!("Installing the {} source port...", source_port);
+    let app_settings = app_settings_repository.get()?;
+    let object_repo = ObjectRepository::new(&app_settings.release_cache_path)?;
+    let user_settings = get_user_settings()?;
+    let release = get_latest_source_port_release(source_port, release_repository, &object_repo)?;
+    if is_source_port_installed(&release, &app_settings) {
+        return Err(eyre!(format!(
+            "Version {} of {} is already installed",
+            release.version, release.source_port
+        )));
+    }
+    let mut sp_dest_path = user_settings.source_ports_path.join(format!(
+        "{}-{}",
+        source_port.get_default_install_dir_name(),
+        release.version
+    ));
+    match install_source_port_release(release.clone(), sp_dest_path.clone()) {
+        Ok(()) => {
+            sp_dest_path.push(source_port.get_bin_name());
+            add_source_port(
+                app_settings_repository,
+                source_port,
+                sp_dest_path,
+                release.version,
+            )
+        }
+        Err(error) => match error {
+            SourcePortError::InstallDestinationExistsError(_) => {
+                return Err(eyre!(error)
+                    .wrap_err(format!(
+                        "Failed to install the latest version of {}",
+                        source_port
+                    ))
+                    .suggestion(format!(
+                        "Remove the {} directory and run the command again",
+                        sp_dest_path.clone().display().to_string()
+                    )));
+            }
+            SourcePortError::AssetNotFoundError(_, _, _) => {
+                return Err(eyre!(error)
+                    .wrap_err(format!(
+                        "Failed to install the latest version of {}",
+                        source_port
+                    ))
+                    .suggestion(
+                        "You can try the command again with the --version argument \
+                        to install a specific version",
+                    )
+                    .suggestion(format!(
+                        "Check the Github repository for {} to see what versions are available",
+                        source_port
+                    )));
+            }
+            _ => Err(eyre!(error)),
+        },
+    }
+}
+
+fn add_source_port(
+    app_settings_repository: &AppSettingsRepository,
+    source_port: SourcePort,
+    path: PathBuf,
+    version: String,
+) -> Result<(), Report> {
+    let isp = InstalledSourcePort::new(source_port, path, &version)?;
+    let mut settings = app_settings_repository.get()?;
+    if settings
+        .source_ports
+        .iter()
+        .any(|sp| sp.name == source_port && sp.version == version)
+    {
+        return Err(eyre!(format!(
+            "There is already a {:?} source port at version {}",
+            source_port, version
+        ))
+        .suggestion("Try adding one with a different name or version"));
+    }
+    settings.source_ports.push(isp);
+    app_settings_repository.save(settings)?;
+    info!("Added version {} of {:?}", version, source_port);
+    Ok(())
+}
+
+fn is_source_port_installed(
+    source_port_release: &SourcePortRelease,
+    settings: &AppSettings,
+) -> bool {
+    settings.source_ports.iter().any(|sp| {
+        sp.name == source_port_release.source_port && sp.version == source_port_release.version
+    })
 }
 
 #[cfg(test)]

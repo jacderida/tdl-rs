@@ -1,0 +1,16 @@
+{
+  "cached_date": "__CACHED_DATE__",
+  "release": {
+    "source_port": "DoomRetro",
+    "owner": "bradharding",
+    "repository": "doomretro",
+    "version": "4.3",
+    "assets": [
+      [
+        "windows",
+        "https://github.com/bradharding/doomretro/releases/download/v4.3/doomretro-4.3-win64.zip"
+      ]
+    ]
+  }
+}
+

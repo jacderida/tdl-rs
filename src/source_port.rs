@@ -3,19 +3,22 @@ use chrono::DateTime;
 #[cfg(not(test))]
 use chrono::Utc;
 use color_eyre::{eyre::ensure, Report, Result};
+use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
 use log::{debug, info};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::io::{BufRead, BufReader, Write};
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use structopt::StructOpt;
 use strum_macros::EnumIter;
 #[cfg(test)]
-use test_helpers::FakeUtc as Utc;
+use test_helpers::date_time::FakeUtc as Utc;
 use thiserror::Error;
+use url::Url;
 
 const GITHUB_API_URL: &str = "https://api.github.com";
 lazy_static! {
@@ -58,18 +61,34 @@ lazy_static! {
 
 #[derive(Debug, Error)]
 pub enum SourcePortError {
+    #[error("The install destination directory {0} already exists")]
+    InstallDestinationExistsError(String),
+    #[error("The source port {0} has no {1} build for version {2}")]
+    AssetNotFoundError(SourcePort, String, String),
     #[error("The source port {0} has no releases marked as latest")]
     NoLatestRelease(SourcePort),
     #[error("Could not parse version number from {0} for {1} source port")]
     VersionParsing(String, String),
-    #[error("Failed to retrieve release request response from Github API")]
-    GithubApiResponseError(#[from] reqwest::Error),
+    #[error("{0}")]
+    DownloadReleaseAssetError(String),
+    #[error("Failed to retrieve response from Github API")]
+    GithubApiRequestError(#[from] reqwest::Error),
+    #[error(transparent)]
+    ToStrError(#[from] reqwest::header::ToStrError),
     #[error(transparent)]
     StorageError(#[from] StorageError),
     #[error(transparent)]
     IoError(#[from] std::io::Error),
     #[error(transparent)]
     SerializationError(#[from] serde_json::Error),
+    #[error(transparent)]
+    ParseIntError(#[from] std::num::ParseIntError),
+    #[error(transparent)]
+    UrlParseError(#[from] url::ParseError),
+    #[error(transparent)]
+    ZipError(#[from] zip::result::ZipError),
+    #[error(transparent)]
+    FsError(#[from] fs_extra::error::Error),
 }
 
 #[derive(Clone, Debug, StructOpt, Serialize, Deserialize)]
@@ -149,6 +168,59 @@ impl std::fmt::Display for SourcePort {
             Self::Rude => write!(f, "RUDE"),
             Self::Woof => write!(f, "Woof!"),
             Self::Zandronum => write!(f, "Zandronum"),
+        }
+    }
+}
+
+impl SourcePort {
+    pub fn get_default_install_dir_name(&self) -> String {
+        match self {
+            Self::Chocolate => "chocolate".to_string(),
+            Self::Crispy => "crispy".to_string(),
+            Self::DoomRetro => "doomretro".to_string(),
+            Self::Dsda => "dsda".to_string(),
+            Self::EternityEngine => "eternityengine".to_string(),
+            Self::GzDoom => "gzdoom".to_string(),
+            Self::LzDoom => "lzdoom".to_string(),
+            Self::Odamex => "odamex".to_string(),
+            Self::PrBoomPlus => "prboom".to_string(),
+            Self::Rude => "rude".to_string(),
+            Self::Woof => "woof".to_string(),
+            Self::Zandronum => "zandronum".to_string(),
+        }
+    }
+
+    pub fn get_bin_name(&self) -> String {
+        match self {
+            Self::Chocolate => "chocolate-doom.exe".to_string(),
+            Self::Crispy => "crispy-doom.exe".to_string(),
+            Self::DoomRetro => "doomretro.exe".to_string(),
+            Self::Dsda => "dsda-doom.exe".to_string(),
+            Self::EternityEngine => "eternity.exe".to_string(),
+            Self::GzDoom => "gzdoom.exe".to_string(),
+            Self::LzDoom => "lzdoom.exe".to_string(),
+            Self::Odamex => "odamex.exe".to_string(),
+            Self::PrBoomPlus => "prboom-plus.exe".to_string(),
+            Self::Rude => "rude-doom.exe".to_string(),
+            Self::Woof => "woof.exe".to_string(),
+            Self::Zandronum => "zandronum.exe".to_string(),
+        }
+    }
+
+    pub fn install_archive_has_directory_at_root(&self) -> bool {
+        match self {
+            Self::Chocolate => false,
+            Self::Crispy => false,
+            Self::DoomRetro => false,
+            Self::Dsda => false,
+            Self::EternityEngine => false,
+            Self::GzDoom => false,
+            Self::LzDoom => false,
+            Self::Odamex => false,
+            Self::PrBoomPlus => false,
+            Self::Rude => false,
+            Self::Woof => true,
+            Self::Zandronum => false,
         }
     }
 }
@@ -322,11 +394,17 @@ pub fn get_latest_source_port_release(
             }
             return Ok(cache_entry.release);
         }
-        debug!("Cache entry is older than 24 hours so it will be deleted");
+        debug!(
+            "Cache entry is {} hours old so it will be deleted",
+            duration.num_hours()
+        );
         object_repository.delete(&id)?;
     }
 
-    debug!("No cached entry for {} so Github will be queried...", id);
+    debug!(
+        "No cached entry or the entry was stale for {} so Github will be queried...",
+        id
+    );
     match release_repository.get_latest_release(source_port) {
         Ok(latest_release) => {
             let cache_entry = CachedSourcePortRelease {
@@ -341,29 +419,159 @@ pub fn get_latest_source_port_release(
                 "Error retrieving latest release for {}: {}",
                 source_port, error
             );
-            match error {
-                SourcePortError::NoLatestRelease(_) => {
-                    // Take the opportunity to cache the missing release, as we don't want to keep
-                    // hitting the API even for a missing one.
-                    let cache_missing_release = CachedSourcePortRelease {
-                        cached_date: Utc::now(),
-                        release: SourcePortRelease {
-                            source_port,
-                            owner: String::from(*owner),
-                            repository: String::from(*repository),
-                            version: String::from("no_latest_release"),
-                            assets: Vec::new(),
-                        },
-                    };
-                    object_repository.save(&id, &cache_missing_release)?;
-                }
-                _ => {}
+            if let SourcePortError::NoLatestRelease(_) = error {
+                // Take the opportunity to cache the missing release, as we don't want to keep
+                // hitting the API even for a missing one.
+                let cache_missing_release = CachedSourcePortRelease {
+                    cached_date: Utc::now(),
+                    release: SourcePortRelease {
+                        source_port,
+                        owner: String::from(*owner),
+                        repository: String::from(*repository),
+                        version: String::from("no_latest_release"),
+                        assets: Vec::new(),
+                    },
+                };
+                object_repository.save(&id, &cache_missing_release)?;
             }
             // We want to just return back whatever the original error was, including if it was the
             // missing latest release error.
             Err(error)
         }
     }
+}
+
+pub fn install_source_port_release(
+    release: SourcePortRelease,
+    destination_dir_path: PathBuf,
+) -> Result<(), SourcePortError> {
+    if destination_dir_path.exists() {
+        return Err(SourcePortError::InstallDestinationExistsError(
+            destination_dir_path.display().to_string(),
+        ));
+    }
+    if let Some(asset) = release.assets.iter().find(|x| x.0 == "windows") {
+        info!(
+            "Downloading {} of {}...",
+            release.version, release.source_port
+        );
+        let url = &asset.1;
+        let archive_file_name = get_filename_from_release_asset_url(url)?;
+        let temp_archive_path = std::env::temp_dir().join(archive_file_name);
+        download_release_archive(url, &temp_archive_path)?;
+        extract_archive(&temp_archive_path, &destination_dir_path)?;
+        if release.source_port.install_archive_has_directory_at_root() {
+            move_source_port_files_out_of_archive_directory(&destination_dir_path)?;
+        }
+        Ok(())
+    } else {
+        Err(SourcePortError::AssetNotFoundError(
+            release.source_port,
+            String::from("windows"),
+            release.version,
+        ))
+    }
+}
+
+/// This is necessary if the source port installation archive uses a directory at its root level,
+/// meaning when you extract it, you get a single directory, rather than just a set of files.
+///
+/// We want the files to be moved out of that directory and back to our destination directory. In
+/// our case, the destination directory will actually be the parent of the archive directory.
+///
+/// After we've moved the files up to the parent, we delete the directory the archive came with.
+fn move_source_port_files_out_of_archive_directory(
+    destination_dir_path: &Path,
+) -> Result<(), SourcePortError> {
+    let mut options = fs_extra::dir::CopyOptions::new();
+    options.content_only = true;
+    let archive_root_dir = std::fs::read_dir(&destination_dir_path)?.next().unwrap()?;
+    fs_extra::dir::copy(archive_root_dir.path(), &destination_dir_path, &options)?;
+    fs_extra::dir::remove(archive_root_dir.path())?;
+    Ok(())
+}
+
+fn get_filename_from_release_asset_url(url: &str) -> Result<String, SourcePortError> {
+    let temp = url.to_string();
+    let url = Url::parse(url)?;
+    let segs = url
+        .path_segments()
+        .ok_or_else(|| {
+            SourcePortError::DownloadReleaseAssetError(format!(
+                "Could not parse release asset filename from {}",
+                &temp
+            ))
+        })?
+        .collect::<Vec<_>>()
+        .iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<String>>();
+    let file_name = segs.last().ok_or_else(|| {
+        SourcePortError::DownloadReleaseAssetError(format!(
+            "Could not parse release asset filename from {}",
+            &temp
+        ))
+    })?;
+    Ok(file_name.clone())
+}
+
+fn download_release_archive(url: &str, dest_path: &Path) -> Result<(), SourcePortError> {
+    let response = reqwest::blocking::Client::new()
+        .get(url.to_string())
+        .header(
+            reqwest::header::USER_AGENT,
+            format!("tdl {}", get_current_tdl_version()),
+        )
+        .header(reqwest::header::ACCEPT, "application/vnd.github.v3+json")
+        .send()?;
+    match response.headers().get(reqwest::header::CONTENT_LENGTH) {
+        Some(header_val) => {
+            let size = header_val.to_str()?.parse::<u64>()?;
+            let bar = ProgressBar::new(size);
+            let style = ProgressStyle::default_bar()
+                .template("[{elapsed_precise}] [{bar:40}] {bytes}/{total_bytes} ({eta}) {msg}")
+                .progress_chars("=>-");
+            bar.set_style(style);
+
+            let mut src = BufReader::new(response);
+            let mut downloaded = 0;
+            let mut dest = std::fs::File::create(&dest_path)?;
+            loop {
+                let n = {
+                    let buf = src.fill_buf()?;
+                    dest.write_all(buf)?;
+                    buf.len()
+                };
+                if n == 0 {
+                    break;
+                }
+                src.consume(n);
+                downloaded = std::cmp::min(downloaded + n as u64, size);
+                bar.set_position(downloaded);
+            }
+            Ok(())
+        }
+        None => Err(SourcePortError::DownloadReleaseAssetError(format!(
+            "Failed to download source port from {}. The response did not contain\
+                the anticipated headers.",
+            url
+        ))),
+    }
+}
+
+fn extract_archive(
+    archive_path: &Path,
+    destination_dir_path: &Path,
+) -> Result<(), SourcePortError> {
+    info!(
+        "Extracting {} to {}...",
+        &archive_path.display(),
+        &destination_dir_path.display()
+    );
+    let zip_file = std::fs::File::open(archive_path)?;
+    let mut zip_archive = zip::ZipArchive::new(zip_file)?;
+    zip_archive.extract(destination_dir_path)?;
+    Ok(())
 }
 
 fn get_current_tdl_version() -> String {
@@ -661,14 +869,14 @@ mod get_latest_source_port_release_from_response {
 }
 
 #[cfg(test)]
-mod get_latest_source_port_version {
+mod get_latest_source_port_release {
     use super::test::FakeReleaseRepository;
     use super::{get_latest_source_port_release, CachedSourcePortRelease, SourcePortError};
     use crate::source_port::SourcePort;
     use crate::storage::ObjectRepository;
     use assert_fs::prelude::*;
     use chrono::{Datelike, Duration, TimeZone, Timelike, Utc};
-    use test_helpers::FakeUtc;
+    use test_helpers::date_time::FakeUtc;
 
     #[test]
     fn should_get_correct_version() {

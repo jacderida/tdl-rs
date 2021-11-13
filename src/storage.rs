@@ -100,10 +100,10 @@ impl ObjectRepository {
         let mut save_pb = PathBuf::from(&self.object_path);
         save_pb.push(format!("{}.json", id));
         if save_pb.exists() {
-            return Err(StorageError::ObjectIdError(String::from(format!(
+            return Err(StorageError::ObjectIdError(format!(
                 "The ID '{}' is already taken.",
                 id
-            ))));
+            )));
         }
         info!("Saving entry for {}", id);
         std::fs::write(save_pb.as_path(), serialized)?;

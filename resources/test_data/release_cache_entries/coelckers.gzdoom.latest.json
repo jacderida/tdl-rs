@@ -1,0 +1,20 @@
+{
+  "cached_date": "__CACHED_DATE__",
+  "release": {
+    "source_port": "GzDoom",
+    "owner": "coelckers",
+    "repository": "gzdoom",
+    "version": "4.7.1",
+    "assets": [
+      [
+        "windows",
+        "https://github.com/coelckers/gzdoom/releases/download/g4.7.1/gzdoom-4-7-1-Windows-64bit.zip"
+      ],
+      [
+        "macos",
+        "https://github.com/coelckers/gzdoom/releases/download/g4.7.1/gzdoom-4-7-1-macOS.zip"
+      ]
+    ]
+  }
+}
+

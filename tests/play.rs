@@ -2,7 +2,7 @@ use assert_cmd::Command;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
 use std::path::PathBuf;
-use test_helpers::helpers::get_fake_source_port_path;
+use test_helpers::source_port::get_fake_source_port_path;
 
 #[test]
 fn play_should_run_the_game_with_the_default_profile() {

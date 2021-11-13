@@ -6,4 +6,5 @@ license = "MIT OR BSD-3-Clause"
 edition = "2018"
 
 [dependencies]
+color-eyre =  "~0.5"
 chrono = { version = "~0.4", features = ["serde"] }
