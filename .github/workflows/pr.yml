@@ -82,3 +82,25 @@ jobs:
         run: |
           cargo test --test profile_ls
           cargo test --test source_port_ls --features=rate-limiting-tests
+  win-integration-tests:
+    name: run windows specific integration tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: install rust
+        id: toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo caching
+        uses: actions/cache@v2.1.4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ steps.toolchain.outputs.rustc_hash }}-cargo-cache-${{ hashFiles('**/Cargo.lock') }}
+      - name: run integration tests
+        run: cargo test --test source_port_install
