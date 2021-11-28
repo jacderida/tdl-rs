@@ -11,6 +11,9 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use strum::IntoEnumIterator;
 
+///
+/// Public members
+///
 #[derive(Debug, StructOpt)]
 pub enum SourcePortCommand {
     /// Adds a source port from an existing directory
@@ -52,16 +55,7 @@ pub fn run_source_port_cmd(
             name,
             path,
             version,
-        } => {
-            debug!("Running add source port command");
-            debug!(
-                "Using values: name: {:?}, path: {}, version: {}",
-                name,
-                path.display(),
-                &version
-            );
-            add_source_port(app_settings_repository, name, path, version)?;
-        }
+        } => run_add_subcommand(name, path, version, app_settings_repository)?,
         SourcePortCommand::Install {
             source_port,
             version,
@@ -73,49 +67,28 @@ pub fn run_source_port_cmd(
                 release_repository,
             )?;
         }
-        SourcePortCommand::Ls => {
-            info!("Listing all available source ports...");
-            let app_settings = app_settings_repository.get()?;
-            let object_repo = ObjectRepository::new(&app_settings.release_cache_path)?;
-            let mut available_source_ports = Vec::new();
-            let mut no_release_source_ports: Vec<SourcePort> = Vec::new();
-            for sp in SourcePort::iter() {
-                match get_latest_source_port_release(sp, release_repository, &object_repo) {
-                    Ok(release) => {
-                        available_source_ports.push(release);
-                    }
-                    Err(error) => match error {
-                        SourcePortError::NoLatestRelease(sp) => {
-                            no_release_source_ports.push(sp);
-                        }
-                        _ => {
-                            return Err(eyre!(error));
-                        }
-                    },
-                }
-            }
-
-            let mut table = Table::new();
-            table.add_row(row!["Source Port", "Latest Version", "Installed?"]);
-            for asp in available_source_ports {
-                let installed = if is_source_port_installed(&asp, &app_settings) {
-                    "Yes"
-                } else {
-                    "No"
-                };
-                table.add_row(row![asp.source_port.to_string(), asp.version, installed]);
-            }
-            table.printstd();
-
-            if !no_release_source_ports.is_empty() {
-                println!("The following source ports had no releases marked as latest:");
-                for sp in no_release_source_ports {
-                    println!("* {} has no version marked as latest", sp);
-                }
-            }
-        }
+        SourcePortCommand::Ls => run_ls_subcommand(app_settings_repository, release_repository)?,
     }
     Ok(())
+}
+
+///
+/// Private subcommand functions
+///
+fn run_add_subcommand(
+    name: SourcePort,
+    path: PathBuf,
+    version: String,
+    app_settings_repository: &AppSettingsRepository,
+) -> Result<(), Report> {
+    debug!("Running add source port command");
+    debug!(
+        "Using values: name: {:?}, path: {}, version: {}",
+        name,
+        path.display(),
+        &version
+    );
+    add_source_port(app_settings_repository, name, path, version)
 }
 
 fn run_install_subcommand(
@@ -130,16 +103,9 @@ fn run_install_subcommand(
         ));
     }
     info!("Installing the {} source port...", source_port);
-    let app_settings = app_settings_repository.get()?;
-    let object_repo = ObjectRepository::new(&app_settings.release_cache_path)?;
+    let release =
+        get_latest_release_for_install(app_settings_repository, source_port, release_repository)?;
     let user_settings = get_user_settings()?;
-    let release = get_latest_source_port_release(source_port, release_repository, &object_repo)?;
-    if is_source_port_installed(&release, &app_settings) {
-        return Err(eyre!(format!(
-            "Version {} of {} is already installed",
-            release.version, release.source_port
-        )));
-    }
     let mut sp_dest_path = user_settings.source_ports_path.join(format!(
         "{}-{}",
         source_port.get_default_install_dir_name(),
@@ -156,7 +122,7 @@ fn run_install_subcommand(
             )
         }
         Err(error) => match error {
-            SourcePortError::InstallDestinationExistsError(_) => {
+            SourcePortError::InstallDestinationExists(_) => {
                 return Err(eyre!(error)
                     .wrap_err(format!(
                         "Failed to install the latest version of {}",
@@ -167,7 +133,7 @@ fn run_install_subcommand(
                         sp_dest_path.clone().display().to_string()
                     )));
             }
-            SourcePortError::AssetNotFoundError(_, _, _) => {
+            SourcePortError::AssetNotFound(_, _, _) => {
                 return Err(eyre!(error)
                     .wrap_err(format!(
                         "Failed to install the latest version of {}",
@@ -187,6 +153,39 @@ fn run_install_subcommand(
     }
 }
 
+fn run_ls_subcommand(
+    app_settings_repository: &AppSettingsRepository,
+    release_repository: &impl ReleaseRepository,
+) -> Result<(), Report> {
+    info!("Listing all available source ports...");
+    let app_settings = app_settings_repository.get()?;
+    let (available_source_ports, no_release_source_ports) =
+        get_available_source_ports(&app_settings, release_repository)?;
+
+    let mut table = Table::new();
+    table.add_row(row!["Source Port", "Latest Version", "Installed?"]);
+    for asp in available_source_ports {
+        let installed = if is_source_port_installed(&asp, &app_settings) {
+            "Yes"
+        } else {
+            "No"
+        };
+        table.add_row(row![asp.source_port.to_string(), asp.version, installed]);
+    }
+    table.printstd();
+
+    if !no_release_source_ports.is_empty() {
+        println!("The following source ports had no releases marked as latest:");
+        for sp in no_release_source_ports {
+            println!("* {} has no version marked as latest", sp);
+        }
+    }
+    Ok(())
+}
+
+///
+/// Private functions
+///
 fn add_source_port(
     app_settings_repository: &AppSettingsRepository,
     source_port: SourcePort,
@@ -212,6 +211,23 @@ fn add_source_port(
     Ok(())
 }
 
+fn get_latest_release_for_install(
+    app_settings_repository: &AppSettingsRepository,
+    source_port: SourcePort,
+    release_repository: &impl ReleaseRepository,
+) -> Result<SourcePortRelease, Report> {
+    let app_settings = app_settings_repository.get()?;
+    let object_repo = ObjectRepository::new(&app_settings.release_cache_path)?;
+    let release = get_latest_source_port_release(source_port, release_repository, &object_repo)?;
+    if is_source_port_installed(&release, &app_settings) {
+        return Err(eyre!(format!(
+            "Version {} of {} is already installed",
+            release.version, release.source_port
+        )));
+    }
+    Ok(release)
+}
+
 fn is_source_port_installed(
     source_port_release: &SourcePortRelease,
     settings: &AppSettings,
@@ -221,6 +237,34 @@ fn is_source_port_installed(
     })
 }
 
+fn get_available_source_ports(
+    app_settings: &AppSettings,
+    release_repository: &impl ReleaseRepository,
+) -> Result<(Vec<SourcePortRelease>, Vec<SourcePort>), Report> {
+    let object_repo = ObjectRepository::new(&app_settings.release_cache_path)?;
+    let mut available_source_ports = Vec::new();
+    let mut no_release_source_ports: Vec<SourcePort> = Vec::new();
+    for sp in SourcePort::iter() {
+        match get_latest_source_port_release(sp, release_repository, &object_repo) {
+            Ok(release) => {
+                available_source_ports.push(release);
+            }
+            Err(error) => match error {
+                SourcePortError::NoLatestRelease(sp) => {
+                    no_release_source_ports.push(sp);
+                }
+                _ => {
+                    return Err(eyre!(error));
+                }
+            },
+        }
+    }
+    Ok((available_source_ports, no_release_source_ports))
+}
+
+///
+/// Tests
+///
 #[cfg(test)]
 mod add {
     use super::run_source_port_cmd;
