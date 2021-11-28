@@ -20,6 +20,9 @@ use test_helpers::date_time::FakeUtc as Utc;
 use thiserror::Error;
 use url::Url;
 
+///
+/// Static data
+///
 const GITHUB_API_URL: &str = "https://api.github.com";
 lazy_static! {
     static ref VERSION_REGEX: Regex = Regex::new(r#"\d+(\.\d+|[a-z]+)+"#).unwrap();
@@ -59,36 +62,42 @@ lazy_static! {
     };
 }
 
+///
+/// Public members
+///
+
+/// I originally had all these entries suffixed with 'Error', but clippy advises against doing
+/// this: https://rust-lang.github.io/rust-clippy/master/index.html#enum_variant_names
 #[derive(Debug, Error)]
 pub enum SourcePortError {
     #[error("The install destination directory {0} already exists")]
-    InstallDestinationExistsError(String),
+    InstallDestinationExists(String),
     #[error("The source port {0} has no {1} build for version {2}")]
-    AssetNotFoundError(SourcePort, String, String),
+    AssetNotFound(SourcePort, String, String),
     #[error("The source port {0} has no releases marked as latest")]
     NoLatestRelease(SourcePort),
     #[error("Could not parse version number from {0} for {1} source port")]
     VersionParsing(String, String),
     #[error("{0}")]
-    DownloadReleaseAssetError(String),
+    DownloadReleaseAsset(String),
     #[error("Failed to retrieve response from Github API")]
-    GithubApiRequestError(#[from] reqwest::Error),
+    GithubApiRequest(#[from] reqwest::Error),
     #[error(transparent)]
-    ToStrError(#[from] reqwest::header::ToStrError),
+    ToStr(#[from] reqwest::header::ToStrError),
     #[error(transparent)]
-    StorageError(#[from] StorageError),
+    Storage(#[from] StorageError),
     #[error(transparent)]
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
     #[error(transparent)]
-    SerializationError(#[from] serde_json::Error),
+    Serialization(#[from] serde_json::Error),
     #[error(transparent)]
-    ParseIntError(#[from] std::num::ParseIntError),
+    ParseInt(#[from] std::num::ParseIntError),
     #[error(transparent)]
-    UrlParseError(#[from] url::ParseError),
+    UrlParse(#[from] url::ParseError),
     #[error(transparent)]
-    ZipError(#[from] zip::result::ZipError),
+    Zip(#[from] zip::result::ZipError),
     #[error(transparent)]
-    FsError(#[from] fs_extra::error::Error),
+    Fs(#[from] fs_extra::error::Error),
 }
 
 #[derive(Clone, Debug, StructOpt, Serialize, Deserialize)]
@@ -323,55 +332,6 @@ impl ReleaseRepository for GithubReleaseRepository {
     }
 }
 
-fn get_latest_source_port_release_from_response(
-    source_port: SourcePort,
-    response: &Value,
-) -> Result<SourcePortRelease, SourcePortError> {
-    let tag = response["tag_name"].as_str();
-    if tag.is_none() {
-        return Err(SourcePortError::NoLatestRelease(source_port));
-    }
-    let tag = tag.unwrap();
-    let (owner, repository) = SOURCE_PORT_OWNERS_MAP.get(&source_port).unwrap();
-    let version = if let Some(regex_match) = VERSION_REGEX.find(tag) {
-        regex_match.as_str()
-    } else {
-        return Err(SourcePortError::VersionParsing(
-            tag.to_string(),
-            source_port.to_string(),
-        ));
-    };
-
-    let mut release_assets = Vec::new();
-    let assets = response["assets"].as_array().unwrap();
-    for platform in vec!["windows", "linux", "macos"].iter() {
-        if let Some(asset_regex) =
-            RELEASE_ASSET_MAP.get(format!("{}/{}/{}", owner, repository, *platform).as_str())
-        {
-            let asset = assets
-                .iter()
-                .find(|v| asset_regex.is_match(v["name"].as_str().unwrap()))
-                .map(|v| {
-                    (
-                        String::from(*platform),
-                        String::from(v["browser_download_url"].as_str().unwrap()),
-                    )
-                });
-            if let Some(a) = asset {
-                release_assets.push(a);
-            }
-        }
-    }
-
-    Ok(SourcePortRelease {
-        source_port,
-        owner: String::from(*owner),
-        repository: String::from(*repository),
-        version: String::from(version),
-        assets: release_assets,
-    })
-}
-
 pub fn get_latest_source_port_release(
     source_port: SourcePort,
     release_repository: &impl ReleaseRepository,
@@ -446,7 +406,7 @@ pub fn install_source_port_release(
     destination_dir_path: PathBuf,
 ) -> Result<(), SourcePortError> {
     if destination_dir_path.exists() {
-        return Err(SourcePortError::InstallDestinationExistsError(
+        return Err(SourcePortError::InstallDestinationExists(
             destination_dir_path.display().to_string(),
         ));
     }
@@ -465,12 +425,64 @@ pub fn install_source_port_release(
         }
         Ok(())
     } else {
-        Err(SourcePortError::AssetNotFoundError(
+        Err(SourcePortError::AssetNotFound(
             release.source_port,
             String::from("windows"),
             release.version,
         ))
     }
+}
+
+///
+/// Private functions
+///
+fn get_latest_source_port_release_from_response(
+    source_port: SourcePort,
+    response: &Value,
+) -> Result<SourcePortRelease, SourcePortError> {
+    let tag = response["tag_name"].as_str();
+    if tag.is_none() {
+        return Err(SourcePortError::NoLatestRelease(source_port));
+    }
+    let tag = tag.unwrap();
+    let (owner, repository) = SOURCE_PORT_OWNERS_MAP.get(&source_port).unwrap();
+    let version = if let Some(regex_match) = VERSION_REGEX.find(tag) {
+        regex_match.as_str()
+    } else {
+        return Err(SourcePortError::VersionParsing(
+            tag.to_string(),
+            source_port.to_string(),
+        ));
+    };
+
+    let mut release_assets = Vec::new();
+    let assets = response["assets"].as_array().unwrap();
+    for platform in vec!["windows", "linux", "macos"].iter() {
+        if let Some(asset_regex) =
+            RELEASE_ASSET_MAP.get(format!("{}/{}/{}", owner, repository, *platform).as_str())
+        {
+            let asset = assets
+                .iter()
+                .find(|v| asset_regex.is_match(v["name"].as_str().unwrap()))
+                .map(|v| {
+                    (
+                        String::from(*platform),
+                        String::from(v["browser_download_url"].as_str().unwrap()),
+                    )
+                });
+            if let Some(a) = asset {
+                release_assets.push(a);
+            }
+        }
+    }
+
+    Ok(SourcePortRelease {
+        source_port,
+        owner: String::from(*owner),
+        repository: String::from(*repository),
+        version: String::from(version),
+        assets: release_assets,
+    })
 }
 
 /// This is necessary if the source port installation archive uses a directory at its root level,
@@ -497,7 +509,7 @@ fn get_filename_from_release_asset_url(url: &str) -> Result<String, SourcePortEr
     let segs = url
         .path_segments()
         .ok_or_else(|| {
-            SourcePortError::DownloadReleaseAssetError(format!(
+            SourcePortError::DownloadReleaseAsset(format!(
                 "Could not parse release asset filename from {}",
                 &temp
             ))
@@ -507,7 +519,7 @@ fn get_filename_from_release_asset_url(url: &str) -> Result<String, SourcePortEr
         .map(|s| s.to_string())
         .collect::<Vec<String>>();
     let file_name = segs.last().ok_or_else(|| {
-        SourcePortError::DownloadReleaseAssetError(format!(
+        SourcePortError::DownloadReleaseAsset(format!(
             "Could not parse release asset filename from {}",
             &temp
         ))
@@ -551,7 +563,7 @@ fn download_release_archive(url: &str, dest_path: &Path) -> Result<(), SourcePor
             }
             Ok(())
         }
-        None => Err(SourcePortError::DownloadReleaseAssetError(format!(
+        None => Err(SourcePortError::DownloadReleaseAsset(format!(
             "Failed to download source port from {}. The response did not contain\
                 the anticipated headers.",
             url
@@ -583,6 +595,9 @@ fn get_current_tdl_version() -> String {
     )
 }
 
+///
+/// Tests
+///
 #[cfg(test)]
 pub mod test {
     use super::{

@@ -16,7 +16,7 @@ const CRISPY_LATEST_VERSION: &str = "5.10.3";
 #[cfg(feature = "rate-limiting-tests")]
 const DOOM_RETRO_LATEST_VERSION: &str = "4.3";
 #[cfg(feature = "rate-limiting-tests")]
-const DSDA_DOOM_LATEST_VERSION: &str = "0.21.3";
+const DSDA_DOOM_LATEST_VERSION: &str = "0.22.1";
 #[cfg(feature = "rate-limiting-tests")]
 const ETERNITY_ENGINE_LATEST_VERSION: &str = "4.02.00";
 #[cfg(feature = "rate-limiting-tests")]
@@ -28,7 +28,7 @@ const ODAMEX_LATEST_VERSION: &str = "0.9.5";
 #[cfg(feature = "rate-limiting-tests")]
 const PRBOOM_LATEST_VERSION: &str = "2.6.1um";
 #[cfg(feature = "rate-limiting-tests")]
-const WOOF_LATEST_VERSION: &str = "7.0.0";
+const WOOF_LATEST_VERSION: &str = "8.1.0";
 
 #[cfg(feature = "rate-limiting-tests")]
 #[test]

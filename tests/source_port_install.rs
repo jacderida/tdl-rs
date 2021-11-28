@@ -471,7 +471,7 @@ fn source_port_install_should_fail_if_destination_dir_already_exists() {
 
     let doom_home_dir = assert_fs::TempDir::new().unwrap().into_persistent();
     let install_dir = doom_home_dir.child(format!(
-        "source-ports/chocolate-{}",
+        "source-ports\\chocolate-{}",
         CHOCOLATE_LATEST_VERSION
     ));
     install_dir.create_dir_all().unwrap();
